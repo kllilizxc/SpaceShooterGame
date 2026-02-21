@@ -1,0 +1,66 @@
+{
+  "name": "LASER",
+  "spritePath": "bullet_laser",
+  "followOwner": true,
+  "origin": { "x": 0.5, "y": 1 },
+  "baseRotation": 1.5708,
+  "bodyWidthRatio": 0.02,
+  "bodyHeightRatio": 1.0,
+  "levels": {
+    "1": {
+      "damage": 50,
+      "fireRate": 3000,
+      "flySpeed": 0,
+      "scale": 2.0,
+      "pierce": 999,
+      "spread": { "count": 1, "angleOffset": 0 },
+      "lifespan": 500,
+      "hitInterval": 100,
+      "description": "Powerful vertical beam. Pierces everything. Slow recharge."
+    },
+    "2": {
+      "damage": 70,
+      "fireRate": 2800,
+      "flySpeed": 0,
+      "scale": 2.2,
+      "pierce": 999,
+      "spread": { "count": 1, "angleOffset": 0 },
+      "lifespan": 500,
+      "hitInterval": 100,
+      "description": "Increased beam intensity and recharge speed."
+    },
+    "3": {
+      "damage": 90,
+      "fireRate": 2600,
+      "flySpeed": 0,
+      "scale": 2.4,
+      "pierce": 999,
+      "spread": { "count": 1, "angleOffset": 0 },
+      "lifespan": 500,
+      "hitInterval": 100,
+      "description": "Massive damage output."
+    },
+    "4": {
+      "damage": 120,
+      "fireRate": 2400,
+      "flySpeed": 0,
+      "scale": 2.6,
+      "pierce": 999,
+      "spread": { "count": 1, "angleOffset": 0 },
+      "lifespan": 500,
+      "hitInterval": 100,
+      "description": "Even faster recharge."
+    },
+    "5": {
+      "damage": 200,
+      "fireRate": 2000,
+      "flySpeed": 0,
+      "scale": 3.0,
+      "pierce": 999,
+      "spread": { "count": 1, "angleOffset": 0 },
+      "lifespan": 500,
+      "hitInterval": 100,
+      "description": "The ultimate orbital strike."
+    }
+  }
+}

@@ -1,0 +1,24 @@
+{
+  "player": {
+    "maxHealth": 100,
+    "invulnerabilityDuration": 1000,
+    "damageFromCollision": 5,
+    "damageFromMissedEnemy": 5,
+    "moveSpeed": 400
+  },
+  "enemy": {
+    "spawnInterval": 1500,
+    "maxHealth": 100,
+    "moveSpeed": 150,
+    "scoreOnKill": 100
+  },
+  "powerup": {
+    "spawnInterval": 60000,
+    "duration": 10000
+  },
+  "levelUp": {
+    "baseXP": 200,
+    "xpScalePerLevel": 2,
+    "xpFromKill": 50
+  }
+}

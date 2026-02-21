@@ -1,0 +1,50 @@
+{
+  "addBullet": {
+    "type": "add_bullet",
+    "name": "ADD BULLET",
+    "description": "Add another bullet to your spread",
+    "maxLevel": 3
+  },
+  "upgradeDamage": {
+    "type": "upgrade_damage",
+    "name": "DAMAGE UP",
+    "description": "Increase bullet damage by 25%",
+    "maxLevel": 5
+  },
+  "upgradeFireRate": {
+    "type": "upgrade_firerate",
+    "name": "FIRE RATE UP",
+    "description": "Increase fire rate by 15%",
+    "maxLevel": 5
+  },
+  "upgradeSpeed": {
+    "type": "upgrade_speed",
+    "name": "SPEED UP",
+    "description": "Increase bullet speed by 20%",
+    "maxLevel": 5
+  },
+  "upgradePierce": {
+    "type": "upgrade_pierce",
+    "name": "PIERCE UP",
+    "description": "Increase pierce by 1",
+    "maxLevel": 5
+  },
+  "upgradeScale": {
+    "type": "upgrade_scale",
+    "name": "SIZE UP",
+    "description": "Increase bullet size by 25%",
+    "maxLevel": 5
+  },
+  "healthRegen": {
+    "type": "health_regen",
+    "name": "HEAL",
+    "description": "Restore 25 health",
+    "maxLevel": 10
+  },
+  "maxHealthUp": {
+    "type": "max_health_up",
+    "name": "MAX HP UP",
+    "description": "Increase max health by 20",
+    "maxLevel": 5
+  }
+}

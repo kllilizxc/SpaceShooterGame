@@ -1,0 +1,36 @@
+{
+  "types": {
+    "basic": {
+      "spritePath": "enemy",
+      "health": 25,
+      "speed": 100,
+      "score": 100,
+      "scale": 0.2,
+      "damage": 5
+    },
+    "fast": {
+      "spritePath": "enemy_fast",
+      "health": 15,
+      "speed": 250,
+      "score": 150,
+      "scale": 0.15,
+      "damage": 5
+    },
+    "tank": {
+      "spritePath": "enemy_tank",
+      "health": 75,
+      "speed": 80,
+      "score": 300,
+      "scale": 0.35,
+      "damage": 10
+    },
+    "heavy": {
+      "spritePath": "enemy_heavy",
+      "health": 150,
+      "speed": 50,
+      "score": 500,
+      "scale": 0.5,
+      "damage": 15
+    }
+  }
+}

@@ -1,0 +1,46 @@
+{
+  "waves": [
+    {
+      "startTime": 0,
+      "spawnInterval": 2000,
+      "enemies": [
+        { "type": "basic", "weight": 100 }
+      ]
+    },
+    {
+      "startTime": 30000,
+      "spawnInterval": 1500,
+      "enemies": [
+        { "type": "basic", "weight": 70 },
+        { "type": "fast", "weight": 30 }
+      ]
+    },
+    {
+      "startTime": 60000,
+      "spawnInterval": 1000,
+      "enemies": [
+        { "type": "basic", "weight": 50 },
+        { "type": "fast", "weight": 40 },
+        { "type": "tank", "weight": 10 }
+      ]
+    },
+    {
+      "startTime": 90000,
+      "spawnInterval": 800,
+      "enemies": [
+        { "type": "basic", "weight": 20 },
+        { "type": "fast", "weight": 40 },
+        { "type": "tank", "weight": 40 }
+      ]
+    },
+    {
+      "startTime": 120000,
+      "spawnInterval": 500,
+      "enemies": [
+        { "type": "fast", "weight": 50 },
+        { "type": "tank", "weight": 40 },
+        { "type": "heavy", "weight": 10 }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,51 @@
+{
+  "name": "RAPID",
+  "spritePath": "bullet",
+  "levels": {
+    "1": {
+      "damage": 4,
+      "fireRate": 250,
+      "flySpeed": 350,
+      "scale": 0.12,
+      "pierce": 1,
+      "spread": { "count": 1, "angleOffset": 0 },
+      "description": "Tiny lightning bolts. Weak but fast firing."
+    },
+    "2": {
+      "damage": 5,
+      "fireRate": 220,
+      "flySpeed": 380,
+      "scale": 0.13,
+      "pierce": 1,
+      "spread": { "count": 1, "angleOffset": 0 },
+      "description": "Increased voltage for higher fire rate."
+    },
+    "3": {
+      "damage": 7,
+      "fireRate": 190,
+      "flySpeed": 410,
+      "scale": 0.14,
+      "pierce": 2,
+      "spread": { "count": 1, "angleOffset": 0 },
+      "description": "Piercing lightning bolts."
+    },
+    "4": {
+      "damage": 9,
+      "fireRate": 160,
+      "flySpeed": 450,
+      "scale": 0.15,
+      "pierce": 2,
+      "spread": { "count": 2, "angleOffset": 0.05 },
+      "description": "Double stream of high-velocity lightning."
+    },
+    "5": {
+      "damage": 12,
+      "fireRate": 120,
+      "flySpeed": 500,
+      "scale": 0.16,
+      "pierce": 3,
+      "spread": { "count": 2, "angleOffset": 0.05 },
+      "description": "The storm unleashed. Constant stream of bolts."
+    }
+  }
+}

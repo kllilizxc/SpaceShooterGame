@@ -1,0 +1,53 @@
+{
+  "name": "SPREAD",
+  "spritePath": "bullet",
+  "bodyWidthRatio": 8,
+  "bodyHeightRatio": 8,
+  "levels": {
+    "1": {
+      "damage": 8,
+      "fireRate": 800,
+      "flySpeed": 150,
+      "scale": 0.075,
+      "pierce": 1,
+      "spread": { "count": 3, "angleOffset": 0.5 },
+      "description": "Slow moving green orbs. Covers a wide area."
+    },
+    "2": {
+      "damage": 10,
+      "fireRate": 750,
+      "flySpeed": 170,
+      "scale": 0.08,
+      "pierce": 1,
+      "spread": { "count": 3, "angleOffset": 0.5 },
+      "description": "Enhanced orb stability for higher impact."
+    },
+    "3": {
+      "damage": 12,
+      "fireRate": 700,
+      "flySpeed": 190,
+      "scale": 0.085,
+      "pierce": 1,
+      "spread": { "count": 5, "angleOffset": 0.6 },
+      "description": "Five orbs fanning out for massive area control."
+    },
+    "4": {
+      "damage": 15,
+      "fireRate": 650,
+      "flySpeed": 210,
+      "scale": 0.09,
+      "pierce": 2,
+      "spread": { "count": 5, "angleOffset": 0.6 },
+      "description": "Added piercing to the spread orbs."
+    },
+    "5": {
+      "damage": 20,
+      "fireRate": 600,
+      "flySpeed": 250,
+      "scale": 0.10,
+      "pierce": 2,
+      "spread": { "count": 7, "angleOffset": 0.8 },
+      "description": "A wall of 7 piercing energy spheres."
+    }
+  }
+}
