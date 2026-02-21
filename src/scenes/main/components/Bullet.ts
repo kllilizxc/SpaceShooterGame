@@ -1,5 +1,5 @@
 import Phaser from "phaser"
-import { VNode, createNode, useUpdate, useRef, useAdoptedObject, onMount } from "../../../lib/react-phaser"
+import { VNode, createNode, useEffect, useUpdate, useRef } from "../../../lib/react-phaser"
 import normalConfig from "../../../config/bullets/normal.json"
 import spreadConfig from "../../../config/bullets/spread.json"
 import laserConfig from "../../../config/bullets/laser.json"
@@ -85,7 +85,7 @@ export function Bullet(props: any): VNode {
   const initialLifespan = levelData.lifespan || 0;
   const lifespanRef = useRef(initialLifespan);
   const hitTrackerRef = useRef<Map<Phaser.GameObjects.GameObject, number>>(new Map());
-  const adopted = useAdoptedObject();
+  const spriteRef = useRef<Phaser.Physics.Arcade.Sprite | null>(null);
 
   const texture = bulletType === BulletType.NORMAL ? 'bullet' : `bullet_${bulletType}`
   const play = `bulletFire_${bulletType}`
@@ -116,7 +116,7 @@ export function Bullet(props: any): VNode {
 
 
   useUpdate((time, delta) => {
-    const sprite = adopted as Phaser.Physics.Arcade.Sprite;
+    const sprite = spriteRef.current;
     if (!sprite || !sprite.active) return;
 
     // Off-screen bounds check — deactivate bullets that leave the game world
@@ -145,8 +145,11 @@ export function Bullet(props: any): VNode {
   });
 
   // 3. Attach methods to the native sprite for collision system to use
-  if (adopted) {
-    (adopted as any).canHit = (target: Phaser.GameObjects.GameObject, time: number) => {
+  useEffect(() => {
+    const sprite = spriteRef.current as any;
+    if (!sprite) return;
+
+    sprite.canHit = (target: Phaser.GameObjects.GameObject, time: number) => {
       const hitTracker = hitTrackerRef.current;
       const hitInterval = levelData.hitInterval || 0;
       if (!hitInterval || hitInterval <= 0) {
@@ -162,13 +165,19 @@ export function Bullet(props: any): VNode {
         return false;
       }
     };
-    (adopted as any).getDamage = () => levelData.damage;
-  }
+    sprite.getDamage = () => levelData.damage;
+
+    return () => {
+      delete sprite.canHit;
+      delete sprite.getDamage;
+    };
+  });
 
   // Delegate rendering to physics-sprite. 
   // We pass all derived props to ensure they are synchronized to the native object.
   return createNode('physics-sprite', {
     ...props,
+    ref: spriteRef,
     texture,
     play,
     velocityX,

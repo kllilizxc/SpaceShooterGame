@@ -6,11 +6,11 @@ import { useGameStore } from "../stores/game"
 import { createNode, useStore, useUpdate, useRef, onMount, useScene, VNode } from "../../../lib/react-phaser"
 
 interface PlayerControllerProps {
-  player: Phaser.Types.Physics.Arcade.SpriteWithDynamicBody
+  playerRef: { current: Phaser.Types.Physics.Arcade.SpriteWithDynamicBody | null }
   onFire?: (data: any) => void
 }
 
-export function usePlayerController({ player, onFire }: PlayerControllerProps): void {
+export function usePlayerController({ playerRef, onFire }: PlayerControllerProps): void {
   const scene = useScene()
   const isPlaying = useStore(useGameStore, s => s.isPlaying)
   const playerStore = useStore(usePlayerStore)
@@ -32,6 +32,8 @@ export function usePlayerController({ player, onFire }: PlayerControllerProps): 
 
   useUpdate((time, delta) => {
     if (!isPlaying) return
+    const player = playerRef.current
+    if (!player || !player.active) return
 
     // 1. Handle Movement
     let vx = 0, vy = 0

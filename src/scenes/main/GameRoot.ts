@@ -1,4 +1,4 @@
-import { createNode, useStore, VNode, useScene, useEffect, useState } from "../../lib/react-phaser"
+import { createNode, useStore, VNode, useScene, useEffect, useRef } from "../../lib/react-phaser"
 import { useGameStore } from "./stores/game"
 import { HUD } from "./components/HUD"
 import { LevelUpPanel } from "./components/LevelUpPanel"
@@ -44,48 +44,44 @@ function usePhysicsController(): void {
 }
 
 export function GameRoot(props: any): VNode {
-    const scene = useScene()
-
-    // Direct Object Nodes! Goodbye refs! Instantiating without adding to scene yet.
-    const [player] = useState(() => {
-        const p = new Phaser.Physics.Arcade.Sprite(scene, 400, 500, 'shipIdle') as Phaser.Types.Physics.Arcade.SpriteWithDynamicBody
-        scene.physics.world.enableBody(p, 0) // 0 = DYNAMIC_BODY
-        return p
-    })
-    const [bullets] = useState(() => new Phaser.Physics.Arcade.Group(scene.physics.world, scene, { classType: Phaser.Physics.Arcade.Sprite, maxSize: 100, defaultKey: null }))
-    const [enemies] = useState(() => new Phaser.Physics.Arcade.Group(scene.physics.world, scene, { defaultKey: 'enemy', maxSize: 20 }))
-    const [powerups] = useState(() => new Phaser.Physics.Arcade.Group(scene.physics.world, scene, { maxSize: 10 }))
+    const playerRef = useRef<Phaser.Types.Physics.Arcade.SpriteWithDynamicBody | null>(null)
+    const bulletsRef = useRef<Phaser.Physics.Arcade.Group | null>(null)
+    const enemiesRef = useRef<Phaser.Physics.Arcade.Group | null>(null)
+    const powerupsRef = useRef<Phaser.Physics.Arcade.Group | null>(null)
 
     // Effect hooks (Logic only, no rendering)
     usePhysicsController()
     useGameLifecycle()
 
-    const [fireRef] = useState(() => ({ current: null as any }))
+    const fireRef = useRef<((data: any) => void) | null>(null)
 
     useCollisions({
-        player,
-        bullets,
-        enemies,
-        powerups
+        playerRef,
+        bulletsRef,
+        enemiesRef,
+        powerupsRef
     })
 
     usePlayerController({
-        player,
+        playerRef,
         onFire: (data) => fireRef.current?.(data)
     })
-    useDebugController({ player })
+    useDebugController({ playerRef })
 
     return createNode('container', {},
         // Background
         createNode('image', { x: 400, y: 300, texture: 'background' }),
 
         // Physics Components (Delegated logical management)
-        createNode(BulletManager, { bulletsGroup: bullets, onFireRef: fireRef }),
-        createNode(EnemySpawner, { enemiesGroup: enemies }),
-        createNode(PowerupSpawner, { powerupsGroup: powerups }),
+        createNode(BulletManager, { bulletsRef, onFireRef: fireRef }),
+        createNode(EnemySpawner, { enemiesRef }),
+        createNode(PowerupSpawner, { powerupsRef }),
 
         // The Player Object
-        createNode(player, {
+        createNode('physics-sprite', {
+            ref: playerRef,
+            x: 400,
+            y: 500,
             texture: 'shipIdle',
             play: 'flyIdle',
             scale: 0.25,

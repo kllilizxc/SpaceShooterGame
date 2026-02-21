@@ -11,13 +11,13 @@ interface ActiveBullet extends Phaser.Physics.Arcade.Sprite {
 }
 
 interface CollisionProps {
-    player: Phaser.Types.Physics.Arcade.SpriteWithDynamicBody
-    bullets: Phaser.Physics.Arcade.Group
-    enemies: Phaser.Physics.Arcade.Group
-    powerups: Phaser.Physics.Arcade.Group
+    playerRef: { current: Phaser.Types.Physics.Arcade.SpriteWithDynamicBody | null }
+    bulletsRef: { current: Phaser.Physics.Arcade.Group | null }
+    enemiesRef: { current: Phaser.Physics.Arcade.Group | null }
+    powerupsRef: { current: Phaser.Physics.Arcade.Group | null }
 }
 
-export function useCollisions({ player, bullets, enemies, powerups }: CollisionProps) {
+export function useCollisions({ playerRef, bulletsRef, enemiesRef, powerupsRef }: CollisionProps) {
     const scene = useScene()
     const playerStore = useStore(usePlayerStore)
     const isLeveling = useStore(useGameStore, s => s.isLeveling)
@@ -31,7 +31,8 @@ export function useCollisions({ player, bullets, enemies, powerups }: CollisionP
     const showGameOver = () => {
         gameStore.setPhase("gameover")
         scene.physics.pause()
-        player.setTint(0xff0000)
+        const player = playerRef.current
+        if (player) player.setTint(0xff0000)
 
         scene.time.delayedCall(100, () => {
             scene.input.keyboard?.once('keydown', () => {
@@ -49,8 +50,16 @@ export function useCollisions({ player, bullets, enemies, powerups }: CollisionP
     }
 
     onMount(() => {
+        const player = playerRef.current
+        const bullets = bulletsRef.current
+        const enemies = enemiesRef.current
+        const powerups = powerupsRef.current
+
+        // Refs should be assigned in the same commit before layout effects flush.
+        if (!player || !bullets || !enemies || !powerups) return
+
         // Bullets vs Enemies
-        scene.physics.add.overlap(bullets, enemies, (bulletObj, enemyObj) => {
+        const bulletsVsEnemies = scene.physics.add.overlap(bullets, enemies, (bulletObj, enemyObj) => {
             const bullet = bulletObj as ActiveBullet
             const enemy = enemyObj as Phaser.Physics.Arcade.Sprite
             if (!bullet.active || !enemy.active) return
@@ -79,7 +88,7 @@ export function useCollisions({ player, bullets, enemies, powerups }: CollisionP
         })
 
         // Player vs Enemies
-        scene.physics.add.overlap(player, enemies, (_p, enemyObj) => {
+        const playerVsEnemies = scene.physics.add.overlap(player, enemies, (_p, enemyObj) => {
             const enemy = enemyObj as Phaser.Physics.Arcade.Sprite
             if (!enemy.active || playerStore.invulnerable > 0) return
             const score = enemy.getData("score") || 100
@@ -95,9 +104,15 @@ export function useCollisions({ player, bullets, enemies, powerups }: CollisionP
         })
 
         // Player vs Powerups
-        scene.physics.add.overlap(player, powerups, (_p, _powerup) => {
+        const playerVsPowerups = scene.physics.add.overlap(player, powerups, (_p, _powerup) => {
             powerups.clear(true, true)
             showLevelUp() // Powerups trigger level up in this game design
         })
+
+        return () => {
+            bulletsVsEnemies.destroy()
+            playerVsEnemies.destroy()
+            playerVsPowerups.destroy()
+        }
     })
 }

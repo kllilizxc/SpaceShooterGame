@@ -1,5 +1,4 @@
 import Phaser from "phaser";
-import { GameState } from "./game-state"; // Needed to interface with stores for useStore
 
 // --- 1. VNode Types & createNode ---
 
@@ -11,6 +10,60 @@ export interface VNode {
     props: Record<string, any>;
     children: VNode[];
 }
+
+type PhaserHost = Phaser.GameObjects.GameObject | Phaser.GameObjects.Group;
+
+interface HostSlot<T extends PhaserHost = PhaserHost> {
+    __v_slot: true;
+    kind: 'create' | 'pooled';
+    expectedType: string;
+    current: T | null;
+    group?: Phaser.Physics.Arcade.Group;
+}
+
+type ContainerHandle = Phaser.GameObjects.Container | HostSlot<Phaser.GameObjects.Container>;
+type ParentHandle = ContainerHandle | undefined;
+type InstanceChild = PhaserHost | ComponentInstance | HostSlot<PhaserHost>;
+
+type CommitOp = () => void;
+interface CommitQueue {
+    ops: CommitOp[];
+    layoutEffects: (() => void)[];
+    effects: (() => void)[];
+}
+
+let currentCommitQueue: CommitQueue | null = null;
+
+function isHostSlot(value: any): value is HostSlot {
+    return !!value && typeof value === 'object' && value.__v_slot === true;
+}
+
+function resolveHost<T extends PhaserHost>(value: T | HostSlot<T> | null | undefined): T | null {
+    if (!value) return null;
+    return isHostSlot(value) ? (value.current as T | null) : value;
+}
+
+function resolveParentContainer(parent: ParentHandle): Phaser.GameObjects.Container | undefined {
+    const resolved = resolveHost(parent as any);
+    return resolved ? (resolved as Phaser.GameObjects.Container) : undefined;
+}
+
+function createHostSlot<T extends PhaserHost>(kind: HostSlot<T>['kind'], expectedType: string, group?: Phaser.Physics.Arcade.Group): HostSlot<T> {
+    return { __v_slot: true, kind, expectedType, current: null, group };
+}
+
+const INTERNAL_PROP_KEYS = new Set([
+    'x', 'y', 'z', 'w', 'h',
+    'width', 'height',
+    'alpha', 'visible', 'scale',
+    'originX', 'originY',
+    'rotation',
+    'interactive', 'useHandCursor', 'onClick', 'onPointerOver', 'onPointerOut',
+    'texture', 'frame', 'tint', 'flipX', 'flipY', 'play',
+    'velocityX', 'velocityY', 'collideWorldBounds', 'bounce', 'drag', 'gravityY', 'immovable',
+    'bodyWidth', 'bodyHeight', 'bodyWidthRatio', 'bodyHeightRatio', 'bodyOffsetX', 'bodyOffsetY',
+    'ref', 'key', 'children',
+]);
 
 export function createNode(type: VNodeType, props?: Record<string, any>, ...children: (VNode | null | undefined | false)[]): VNode {
     return {
@@ -38,50 +91,78 @@ class ComponentInstance {
     public hooks: HookState[] = [];
     public renderedVNode: VNode | null = null;
     public unmounted = false;
-    public updateCallback?: (time: number, delta: number) => void;
 
     private unsubs: (() => void)[] = [];
-    private pendingEffects: (() => void)[] = [];
 
     constructor(
         public scene: Phaser.Scene,
         public componentDef: Function,
         public props: any,
-        public parentContainer?: Phaser.GameObjects.Container,
-        public phaserObject: Phaser.GameObjects.GameObject | ComponentInstance | null = null
+        public parentContainer?: ParentHandle,
+        public phaserObject: InstanceChild | null = null
     ) { }
 
     render() {
         if (this.unmounted) return;
 
+        const commitQueue: CommitQueue = { ops: [], layoutEffects: [], effects: [] };
+        this.renderIntoQueue(commitQueue);
+
+        // Commit
+        commitQueue.ops.forEach(op => op());
+        // Flush layout effects, then passive effects
+        commitQueue.layoutEffects.forEach(effect => effect());
+        commitQueue.effects.forEach(effect => effect());
+    }
+
+    renderIntoQueue(commitQueue: CommitQueue) {
+        if (this.unmounted) return;
+
         const prevContext = currentContext;
         const prevIndex = currentHookIndex;
+        const prevQueue = currentCommitQueue;
 
         currentContext = this;
         currentHookIndex = 0;
+        currentCommitQueue = commitQueue;
 
-        const newVNode = this.componentDef(this.props) as VNode | null;
-
-        currentContext = prevContext;
-        currentHookIndex = prevIndex;
-
-        // Reconcile
-        this.phaserObject = reconcile(this.scene, this.parentContainer, this.renderedVNode, newVNode, this.phaserObject);
-        this.renderedVNode = newVNode;
-
-        // Propagate props/key to native object for list syncing visibility
-        if (this.phaserObject && !(this.phaserObject instanceof ComponentInstance)) {
-            (this.phaserObject as any).__v_props = this.props;
+        let newVNode: VNode | null = null;
+        try {
+            newVNode = this.componentDef(this.props) as VNode | null;
+        } finally {
+            currentContext = prevContext;
+            currentHookIndex = prevIndex;
+            currentCommitQueue = prevQueue;
         }
 
-        // Run pending effects (onMount/useEffect)
-        const effects = this.pendingEffects;
-        this.pendingEffects = [];
-        effects.forEach(effect => effect());
+        // Reconcile (pure render → patch list)
+        const nextChild = reconcile(this.scene, this.parentContainer, this.renderedVNode, newVNode, this.phaserObject, commitQueue);
+
+        // Finalize instance bookkeeping after commit
+        commitQueue.ops.push(() => {
+            this.renderedVNode = newVNode;
+
+            if (nextChild && isHostSlot(nextChild)) {
+                this.phaserObject = nextChild.current;
+            } else {
+                this.phaserObject = nextChild;
+            }
+
+            const childHost = (this.phaserObject instanceof ComponentInstance) ? null : resolveHost(this.phaserObject as any);
+            if (childHost) {
+                (childHost as any).__v_props = this.props;
+            }
+        });
+    }
+
+    addLayoutEffect(callback: () => void) {
+        if (!currentCommitQueue) throw new Error("Effects must be scheduled during a render");
+        currentCommitQueue.layoutEffects.push(callback);
     }
 
     addEffect(callback: () => void) {
-        this.pendingEffects.push(callback);
+        if (!currentCommitQueue) throw new Error("Effects must be scheduled during a render");
+        currentCommitQueue.effects.push(callback);
     }
 
     unmount() {
@@ -97,9 +178,23 @@ class ComponentInstance {
         // Destroy owned phaser objects (and their children)
         if (this.phaserObject instanceof ComponentInstance) {
             this.phaserObject.unmount();
-        } else if (this.phaserObject && (this.phaserObject as any).destroy) {
-            if (!(this.phaserObject as any).__v_pooled) {
-                (this.phaserObject as any).destroy();
+        } else if (this.phaserObject) {
+            const host = resolveHost(this.phaserObject as any) as any;
+            if (host) {
+                const children: any[] = host.__v_children;
+                if (Array.isArray(children)) {
+                    for (const child of children) {
+                        if (child instanceof ComponentInstance) child.unmount();
+                        else if (child && typeof child.destroy === 'function' && !child.__v_pooled) {
+                            child.destroy();
+                        }
+                    }
+                    host.__v_children = [];
+                }
+
+                if (typeof host.destroy === 'function' && !host.__v_pooled) {
+                    host.destroy();
+                }
             }
         }
         this.phaserObject = null;
@@ -145,33 +240,46 @@ export function useStore<T, U = T>(storeHook: () => T, selector?: (store: T) => 
     const store = storeHook() as any;
 
     if (!ctx.hooks[index]) {
-        const initialValue = selector ? selector(store) : store;
-        ctx.hooks[index] = { state: initialValue };
+        const selected = selector ? selector(store) : store;
+        const state = { value: selected as any, store, selector };
+        ctx.hooks[index] = { state };
 
-        if (store.$subscribe) {
-            const unsub = store.$subscribe(() => {
-                if (selector) {
-                    const nextValue = selector(store);
-                    if (nextValue !== ctx.hooks[index].state) {
-                        ctx.hooks[index].state = nextValue;
+        // Subscribe after commit (avoid side effects during render)
+        ctx.addLayoutEffect(() => {
+            if (!store.$subscribe) return;
+
+            const unsubscribe = store.$subscribe(() => {
+                if (ctx.unmounted) return;
+                const { store: latestStore, selector: latestSelector } = ctx.hooks[index].state;
+                if (latestSelector) {
+                    const nextValue = latestSelector(latestStore);
+                    if (nextValue !== ctx.hooks[index].state.value) {
+                        ctx.hooks[index].state.value = nextValue;
                         ctx.render();
                     }
                 } else {
-                    // Whole store subscription: must re-render on any mutation
-                    // since the store object itself is stable.
                     ctx.render();
                 }
             });
-            ctx.addSubscription(unsub);
-        }
+
+            ctx.hooks[index].cleanup = () => unsubscribe();
+
+            // Catch up in case the store changed between render and subscribing
+            const { store: latestStore, selector: latestSelector } = ctx.hooks[index].state;
+            const nextValue = latestSelector ? latestSelector(latestStore) : latestStore;
+            if (nextValue !== ctx.hooks[index].state.value) {
+                ctx.hooks[index].state.value = nextValue;
+                ctx.render();
+            }
+        });
     }
 
-    return ctx.hooks[index].state;
-}
-
-export function useAdoptedObject(): Phaser.GameObjects.GameObject | null {
-    if (!currentContext) throw new Error("useAdoptedObject must be called inside a component");
-    return (currentContext.phaserObject instanceof Phaser.GameObjects.GameObject) ? currentContext.phaserObject : null;
+    // Keep selector/store references fresh and return a render-time snapshot
+    const hookState = ctx.hooks[index].state;
+    hookState.store = store;
+    hookState.selector = selector;
+    hookState.value = selector ? selector(store) : store;
+    return hookState.value;
 }
 
 export function useScene(): Phaser.Scene {
@@ -191,44 +299,31 @@ export function useRef<T>(initialValue: T): { current: T } {
     return ctx.hooks[index].state;
 }
 
-export function useUpdate(callback: (time: number, delta: number) => void): void;
-export function useUpdate<T>(ref: { current: T | null }, callback: (obj: T, time: number, delta: number) => void): void;
-export function useUpdate(arg1: any, arg2?: any) {
+export function useUpdate(callback: (time: number, delta: number) => void): void {
     if (!currentContext) throw new Error("useUpdate must be called inside a component");
     const ctx = currentContext;
     const index = currentHookIndex++;
 
-    const ref = typeof arg1 === 'function' ? null : arg1;
-    const callback = typeof arg1 === 'function' ? arg1 : arg2;
-
     if (!ctx.hooks[index]) {
-        // Store the callback (and ref) in state
-        const state = { callback, ref };
+        // Store the callback in state
+        const state = { callback };
         ctx.hooks[index] = { state };
 
-        const updateWrapper = (time: number, delta: number) => {
-            if (ctx.unmounted) return;
+        // Register after commit (avoid side effects during render)
+        ctx.addLayoutEffect(() => {
+            const updateWrapper = (time: number, delta: number) => {
+                if (ctx.unmounted) return;
+                state.callback(time, delta);
+            };
 
-            const currentCallback = state.callback;
-            const currentRef = state.ref;
-
-            if (currentRef) {
-                if (currentRef.current) {
-                    currentCallback(currentRef.current, time, delta);
-                }
-            } else {
-                currentCallback(time, delta);
-            }
-        };
-        ctx.scene.events.on('update', updateWrapper);
-
-        ctx.hooks[index].cleanup = () => {
-            ctx.scene.events.off('update', updateWrapper);
-        };
+            ctx.scene.events.on('update', updateWrapper);
+            ctx.hooks[index].cleanup = () => {
+                ctx.scene.events.off('update', updateWrapper);
+            };
+        });
     } else {
         // Update fresh references
         ctx.hooks[index].state.callback = callback;
-        ctx.hooks[index].state.ref = ref;
     }
 }
 
@@ -239,7 +334,33 @@ export function onMount(callback: () => void | (() => void)) {
 
     if (!ctx.hooks[index]) {
         ctx.hooks[index] = { state: true };
-        ctx.addEffect(() => {
+        ctx.addLayoutEffect(() => {
+            const cleanup = callback();
+            if (typeof cleanup === 'function') {
+                ctx.hooks[index].cleanup = cleanup;
+            }
+        });
+    }
+}
+
+export function useLayoutEffect(callback: () => void | (() => void), deps?: any[]) {
+    if (!currentContext) throw new Error("useLayoutEffect must be called inside a component");
+    const ctx = currentContext;
+    const index = currentHookIndex++;
+
+    const oldDeps = ctx.hooks[index]?.deps;
+    const hasChanged = !deps || !oldDeps || deps.length !== oldDeps.length || deps.some((d, i) => d !== oldDeps[i]);
+
+    if (hasChanged) {
+        if (!ctx.hooks[index]) {
+            ctx.hooks[index] = {};
+        }
+        ctx.hooks[index].deps = deps;
+
+        ctx.addLayoutEffect(() => {
+            if (ctx.hooks[index].cleanup) {
+                ctx.hooks[index].cleanup();
+            }
             const cleanup = callback();
             if (typeof cleanup === 'function') {
                 ctx.hooks[index].cleanup = cleanup;
@@ -254,7 +375,7 @@ export function useEffect(callback: () => void | (() => void), deps?: any[]) {
     const index = currentHookIndex++;
 
     const oldDeps = ctx.hooks[index]?.deps;
-    const hasChanged = !oldDeps || !deps || deps.some((d, i) => d !== oldDeps[i]);
+    const hasChanged = !deps || !oldDeps || deps.length !== oldDeps.length || deps.some((d, i) => d !== oldDeps[i]);
 
     if (hasChanged) {
         if (!ctx.hooks[index]) {
@@ -277,61 +398,83 @@ export function useEffect(callback: () => void | (() => void), deps?: any[]) {
 
 // --- 5. Reconciler ---
 
-type PhaserNode = Phaser.GameObjects.GameObject;
+type PhaserNode = PhaserHost;
 
 function reconcile(
     scene: Phaser.Scene,
-    parent: Phaser.GameObjects.Container | undefined,
+    parent: ParentHandle,
     oldNode: VNode | null,
     newNode: VNode | null,
-    existingObj: PhaserNode | ComponentInstance | null
-): PhaserNode | ComponentInstance | null {
+    existingObj: InstanceChild | null,
+    commitQueue: CommitQueue
+): InstanceChild | null {
+
+    const scheduleDestroy = (obj: InstanceChild | null) => {
+        if (!obj) return;
+
+        if (obj instanceof ComponentInstance) {
+            commitQueue.ops.push(() => obj.unmount());
+            return;
+        }
+
+        commitQueue.ops.push(() => {
+            const host = resolveHost(obj as any);
+            if (!host) return;
+
+            const oldChildren: any[] = (host as any).__v_children;
+            if (Array.isArray(oldChildren)) {
+                for (const child of oldChildren) {
+                    if (child instanceof ComponentInstance) child.unmount();
+                    else if (child && typeof (child as any).destroy === 'function') {
+                        if (!(child as any).__v_pooled) {
+                            (child as any).destroy();
+                        }
+                    }
+                }
+                (host as any).__v_children = [];
+            }
+
+            if (typeof (host as any).destroy === 'function' && !(host as any).__v_pooled) {
+                (host as any).destroy();
+            }
+        });
+    };
 
     // 1. Remove old
     if (!newNode) {
-        if (existingObj instanceof ComponentInstance) {
-            existingObj.unmount();
-            // If the component rendered a Phaser object, remove it from its parent
-            if (parent && existingObj.phaserObject) {
-                const node = existingObj.phaserObject instanceof ComponentInstance ? null : existingObj.phaserObject;
-                if (node) parent.remove(node, true);
-            }
-        } else if (existingObj) {
-            existingObj.destroy();
-        }
+        scheduleDestroy(existingObj);
         return null;
     }
 
     // 2. Functional Component
     if (typeof newNode.type === 'function') {
-        let instance = existingObj as ComponentInstance;
+        const shouldReplace = !oldNode || oldNode.type !== newNode.type || !(existingObj instanceof ComponentInstance);
 
-        if (!oldNode || oldNode.type !== newNode.type || !(existingObj instanceof ComponentInstance)) {
-            // Teardown old (if it was a different type of component)
-            let adoptedObj = (existingObj instanceof ComponentInstance) ? null : existingObj;
+        if (shouldReplace) {
             if (existingObj instanceof ComponentInstance) {
-                existingObj.unmount();
-            } else if (existingObj && !adoptedObj) {
-                // If it's a native object and NOT being adopted (e.g. type changed entirely), destroy it
-                if (!(existingObj as any).__v_pooled) {
-                    existingObj.destroy();
-                }
+                scheduleDestroy(existingObj);
             }
 
-            // Mount new
-            instance = new ComponentInstance(scene, newNode.type as Function, newNode.props, parent, adoptedObj);
-            instance.render();
-            return instance;
-        } else {
-            // Update existing
-            instance.props = newNode.props;
-            instance.render();
+            const adoptedObj = (existingObj instanceof ComponentInstance) ? null : existingObj;
+            const instance = new ComponentInstance(scene, newNode.type as Function, newNode.props, parent, adoptedObj);
+
+            // Render child subtree into the same commit
+            instance.renderIntoQueue(commitQueue);
+
             return instance;
         }
+
+        const instance = existingObj;
+        instance.props = newNode.props;
+        instance.parentContainer = parent;
+
+        instance.renderIntoQueue(commitQueue);
+
+        return instance;
     }
 
     // 3. Native Phaser Object
-    let phaserObj = existingObj as PhaserNode;
+    let phaserHandle: PhaserNode | HostSlot<PhaserHost> | null = null;
 
     // Determine if we need a totally new object
     let isNew = !oldNode || oldNode?.type !== newNode.type || existingObj instanceof ComponentInstance;
@@ -341,67 +484,100 @@ function reconcile(
     // and we don't have an old node, we can treat it as an update rather than a new mount.
     if (!oldNode && existingObj && !(existingObj instanceof ComponentInstance)) {
         let typeMatches = false;
-        if (newNode.type === 'sprite' && existingObj instanceof Phaser.GameObjects.Sprite) typeMatches = true;
-        else if (newNode.type === 'physics-sprite' && existingObj instanceof Phaser.Physics.Arcade.Sprite) typeMatches = true;
-        else if (newNode.type === 'image' && existingObj instanceof Phaser.GameObjects.Image) typeMatches = true;
-        else if (newNode.type === 'text' && existingObj instanceof Phaser.GameObjects.Text) typeMatches = true;
-        else if (newNode.type === 'container' && existingObj instanceof Phaser.GameObjects.Container) typeMatches = true;
-        else if (newNode.type === 'physics-group' && existingObj instanceof Phaser.GameObjects.Group) typeMatches = true;
-        else if (newNode.type === 'rect' && existingObj instanceof Phaser.GameObjects.Graphics) typeMatches = true;
-        else if (newNode.type === existingObj) typeMatches = true; // Direct matching for 'direct' nodes
+        if (isHostSlot(existingObj)) {
+            typeMatches = typeof newNode.type === 'string' && existingObj.expectedType === (newNode.type as string);
+        } else {
+            const existingHost = existingObj as PhaserHost;
+            if (newNode.type === 'sprite' && existingHost instanceof Phaser.GameObjects.Sprite) typeMatches = true;
+            else if (newNode.type === 'physics-sprite' && existingHost instanceof Phaser.Physics.Arcade.Sprite) typeMatches = true;
+            else if (newNode.type === 'image' && existingHost instanceof Phaser.GameObjects.Image) typeMatches = true;
+            else if (newNode.type === 'text' && existingHost instanceof Phaser.GameObjects.Text) typeMatches = true;
+            else if (newNode.type === 'container' && existingHost instanceof Phaser.GameObjects.Container) typeMatches = true;
+            else if (newNode.type === 'physics-group' && existingHost instanceof Phaser.GameObjects.Group) typeMatches = true;
+            else if (newNode.type === 'rect' && existingHost instanceof Phaser.GameObjects.Graphics) typeMatches = true;
+            else if (newNode.type === 'graphics' && existingHost instanceof Phaser.GameObjects.Graphics) typeMatches = true;
+            else if (typeof newNode.type === 'object' && newNode.type !== null && newNode.type === existingHost) typeMatches = true; // Direct matching for 'direct' nodes
+        }
 
         if (typeMatches) isNew = false;
     }
 
     if (isNew) {
         // Teardown old
-        if (existingObj instanceof ComponentInstance) {
-            existingObj.unmount();
-        } else if (existingObj) {
-            // NEVER destroy an object that belongs to a pool!
-            if (!(existingObj as any).__v_pooled) {
-                existingObj.destroy();
-            }
-        }
+        scheduleDestroy(existingObj);
 
         if (typeof newNode.type === 'object' && newNode.type !== null) {
             // Direct Object Node
-            phaserObj = newNode.type as any;
-            // For Direct Objects, we MUST apply initial props here because createPhaserObject isn't called
-            updatePhaserObject(phaserObj, 'direct', newNode.props, {}, true);
+            phaserHandle = newNode.type as any;
+
+            commitQueue.ops.push(() => {
+                updatePhaserObject(phaserHandle as any, 'direct', newNode.props, {}, true);
+            });
         } else {
-            phaserObj = createPhaserObject(scene, newNode.type as string, newNode.props);
+            const slot = createHostSlot<PhaserHost>('create', newNode.type as string);
+            phaserHandle = slot;
+            commitQueue.ops.push(() => {
+                slot.current = createPhaserObject(scene, newNode.type as string, newNode.props) as any;
+            });
         }
 
-        if (phaserObj && !(phaserObj instanceof Phaser.GameObjects.Group)) {
-            if (parent) {
-                parent.add(phaserObj as Phaser.GameObjects.GameObject);
+        // Attach to parent / scene
+        commitQueue.ops.push(() => {
+            const obj = resolveHost(phaserHandle as any);
+            if (!obj) return;
+            if (obj instanceof Phaser.GameObjects.Group) return;
+
+            const parentContainer = resolveParentContainer(parent);
+            if (parentContainer) {
+                parentContainer.add(obj as Phaser.GameObjects.GameObject);
             } else {
-                scene.add.existing(phaserObj as Phaser.GameObjects.GameObject);
+                scene.add.existing(obj as Phaser.GameObjects.GameObject);
             }
-        }
+        });
     } else {
         // Patch props
-        updatePhaserObject(phaserObj, newNode.type as string, newNode.props, oldNode?.props || {}, !oldNode);
+        phaserHandle = existingObj as any;
+        const nodeType = (typeof newNode.type === 'object' && newNode.type !== null) ? 'direct' : (newNode.type as string);
+        commitQueue.ops.push(() => {
+            const obj = resolveHost(phaserHandle as any);
+            if (!obj) return;
+            updatePhaserObject(obj, nodeType, newNode.props, oldNode?.props || {}, !oldNode);
+        });
     }
 
     // Capture ref
-    if (newNode.props.ref && phaserObj) {
-        newNode.props.ref.current = phaserObj;
+    if (newNode.props.ref && phaserHandle) {
+        commitQueue.ops.push(() => {
+            const obj = resolveHost(phaserHandle as any);
+            if (obj) newNode.props.ref.current = obj;
+        });
     }
 
     // 4. Reconcile Children
-    if (phaserObj instanceof Phaser.GameObjects.Container || phaserObj instanceof Phaser.Physics.Arcade.Group) {
-        const isGroup = phaserObj instanceof Phaser.Physics.Arcade.Group;
-        const parentContainer = phaserObj as Phaser.GameObjects.Container | Phaser.Physics.Arcade.Group;
+    const resolvedNow = resolveHost(phaserHandle as any);
+    const expectedType = isHostSlot(phaserHandle) ? phaserHandle.expectedType : null;
+    const isContainer = (resolvedNow instanceof Phaser.GameObjects.Container) || expectedType === 'container';
+    const isGroup = (resolvedNow instanceof Phaser.Physics.Arcade.Group) || expectedType === 'physics-group';
+
+    if (isContainer || isGroup) {
+        const parentContainerHandle: any = phaserHandle;
+        const parentContainerNow = resolvedNow as any;
 
         // We store the reconciled children on the phaser object so we can diff them next time.
-        const oldChildrenData: (PhaserNode | ComponentInstance)[] = (parentContainer as any).__v_children || [];
-        const newChildrenData: (PhaserNode | ComponentInstance | null)[] = [];
+        const oldChildrenData: InstanceChild[] = (parentContainerNow as any)?.__v_children || [];
+        const newChildrenData: InstanceChild[] = [];
 
         // Map old children by key for faster/stable lookups
-        const oldChildrenMap = new Map<string | number, PhaserNode | ComponentInstance>();
-        const oldChildrenUnkeyed: (PhaserNode | ComponentInstance)[] = [];
+        const oldChildrenMap = new Map<string | number, InstanceChild>();
+        const oldChildrenUnkeyed: InstanceChild[] = [];
+        const oldVNodeByKey = new Map<string | number, VNode>();
+
+        if (oldNode?.children) {
+            for (const oldChild of oldNode.children) {
+                const key = oldChild.props?.key ?? oldChild.key;
+                if (key !== undefined) oldVNodeByKey.set(key, oldChild);
+            }
+        }
 
         for (let i = 0; i < oldChildrenData.length; i++) {
             const childObj = oldChildrenData[i];
@@ -420,14 +596,13 @@ function reconcile(
             const newChildVNode = newNode.children[i];
             const key = newChildVNode.props?.key ?? newChildVNode.key;
 
-            let existingChildObj: PhaserNode | ComponentInstance | null = null;
+            let existingChildObj: InstanceChild | null = null;
             let oldChildVNode: VNode | null = null;
 
             if (key !== undefined && oldChildrenMap.has(key)) {
                 existingChildObj = oldChildrenMap.get(key)!;
                 oldChildrenMap.delete(key);
-                // Try to find the matching old VNode (best effort without storing it)
-                oldChildVNode = oldNode?.children?.find(c => c.key === key || c.props?.key === key) || null;
+                oldChildVNode = oldVNodeByKey.get(key) || null;
             } else if (oldChildrenUnkeyed.length > 0) {
                 existingChildObj = oldChildrenUnkeyed.shift()!;
                 oldChildVNode = oldNode?.children?.[i] || null;
@@ -435,105 +610,110 @@ function reconcile(
 
             // Pool creation logic: If the parent is a group and we don't have an object for this index/key
             if (isGroup && !existingChildObj) {
-                const group = parentContainer as Phaser.Physics.Arcade.Group;
-                const pooledSprite = group.get() as Phaser.Physics.Arcade.Sprite;
-                if (pooledSprite) {
+                const pooledSlot = createHostSlot<Phaser.Physics.Arcade.Sprite>('pooled', 'physics-sprite');
+                existingChildObj = pooledSlot as any;
+                commitQueue.ops.push(() => {
+                    const groupObj = resolveHost(parentContainerHandle as any) as Phaser.Physics.Arcade.Group | null;
+                    if (!groupObj) return;
+                    const pooledSprite = groupObj.get() as Phaser.Physics.Arcade.Sprite;
+                    if (!pooledSprite) return;
+
                     pooledSprite.setActive(true).setVisible(true);
                     if (pooledSprite.body) {
                         (pooledSprite.body as Phaser.Physics.Arcade.Body).setEnable(true);
                     }
-                    (pooledSprite as any).__v_pooled = true; // Mark it!
-                    existingChildObj = pooledSprite;
-                    // We leave oldChildVNode as null so reconcile knows it's "mounting" props for the first time
-                }
+                    (pooledSprite as any).__v_pooled = true;
+                    pooledSlot.current = pooledSprite;
+                });
             }
 
             // Important: We pass the parentContainer down so the child knows it's in a group
             // but we pass undefined if it's a group to prevent recursive .add() calls
-            const newChildObj = reconcile(scene, isGroup ? undefined : (parentContainer as Phaser.GameObjects.Container), oldChildVNode, newChildVNode, existingChildObj);
+            const newChildObj = reconcile(scene, isGroup ? undefined : (parentContainerHandle as any), oldChildVNode, newChildVNode, existingChildObj, commitQueue);
 
             if (newChildObj) {
-                (newChildObj as any).__v_props = newChildVNode.props; // Tag for future key lookups
+                // Tag for future key lookups
+                commitQueue.ops.push(() => {
+                    if (newChildObj instanceof ComponentInstance) {
+                        (newChildObj as any).__v_props = newChildVNode.props;
+                    } else {
+                        const host = resolveHost(newChildObj as any);
+                        if (host) (host as any).__v_props = newChildVNode.props;
+                    }
+                });
                 newChildrenData.push(newChildObj);
             }
         }
 
         // Cleanup unmounted children
-        oldChildrenMap.forEach((childObj) => {
-            if (isGroup) {
-                const group = parentContainer as Phaser.Physics.Arcade.Group;
-                const cleanupSprite = (sprite: Phaser.Physics.Arcade.Sprite) => {
-                    group.killAndHide(sprite);
-                    if (sprite.body) {
-                        sprite.body.stop();
-                        (sprite.body as Phaser.Physics.Arcade.Body).setEnable(false);
-                    }
-                };
+        const removedChildren: InstanceChild[] = [];
+        oldChildrenMap.forEach(child => removedChildren.push(child));
+        oldChildrenUnkeyed.forEach(child => removedChildren.push(child));
 
-                if (childObj instanceof ComponentInstance) {
-                    const phaserNode = (childObj.phaserObject instanceof ComponentInstance) ? null : childObj.phaserObject;
-                    const isPooled = !!(phaserNode as any)?.__v_pooled;
-                    childObj.unmount();
-                    if (isPooled && phaserNode instanceof Phaser.Physics.Arcade.Sprite) {
-                        cleanupSprite(phaserNode);
+        commitQueue.ops.push(() => {
+            const host = resolveHost(parentContainerHandle as any) as any;
+            const group = (host instanceof Phaser.Physics.Arcade.Group) ? (host as Phaser.Physics.Arcade.Group) : null;
+
+            const cleanupPooledSprite = (sprite: Phaser.Physics.Arcade.Sprite) => {
+                if (!group) return;
+                group.killAndHide(sprite);
+                if (sprite.body) {
+                    sprite.body.stop();
+                    (sprite.body as Phaser.Physics.Arcade.Body).setEnable(false);
+                }
+            };
+
+            for (const childObj of removedChildren) {
+                if (group) {
+                    if (childObj instanceof ComponentInstance) {
+                        const phaserNode = (childObj.phaserObject instanceof ComponentInstance) ? null : childObj.phaserObject;
+                        const isPooled = !!(phaserNode as any)?.__v_pooled;
+                        childObj.unmount();
+                        if (isPooled && phaserNode instanceof Phaser.Physics.Arcade.Sprite) {
+                            cleanupPooledSprite(phaserNode);
+                        }
+                        continue;
                     }
-                } else {
-                    const sprite = childObj as Phaser.Physics.Arcade.Sprite;
+
+                    const sprite = resolveHost(childObj as any) as Phaser.Physics.Arcade.Sprite | null;
                     const isPooled = !!(sprite as any)?.__v_pooled;
-                    if (isPooled) {
-                        cleanupSprite(sprite);
+                    if (sprite) {
+                        if (isPooled) cleanupPooledSprite(sprite);
+                        else sprite.destroy();
+                    }
+                    continue;
+                }
+
+                // Non-group container cleanup
+                if (childObj instanceof ComponentInstance) childObj.unmount();
+                else {
+                    const childHost = resolveHost(childObj as any) as Phaser.GameObjects.GameObject | null;
+                    if (childHost) childHost.destroy();
+                }
+            }
+
+            // Save the new children state
+            if (host) {
+                const resolvedChildren: (PhaserHost | ComponentInstance)[] = [];
+                for (const child of newChildrenData) {
+                    if (child instanceof ComponentInstance) {
+                        resolvedChildren.push(child);
                     } else {
-                        sprite.destroy();
+                        const childHost = resolveHost(child as any);
+                        if (childHost) resolvedChildren.push(childHost);
                     }
                 }
-            } else {
-                if (childObj instanceof ComponentInstance) childObj.unmount();
-                else if (childObj) (childObj as Phaser.GameObjects.GameObject).destroy();
+                (host as any).__v_children = resolvedChildren;
             }
         });
-        oldChildrenUnkeyed.forEach((childObj) => {
-            if (isGroup) {
-                const group = parentContainer as Phaser.Physics.Arcade.Group;
-                const cleanupSprite = (sprite: Phaser.Physics.Arcade.Sprite) => {
-                    group.killAndHide(sprite);
-                    if (sprite.body) {
-                        sprite.body.stop();
-                        (sprite.body as Phaser.Physics.Arcade.Body).setEnable(false);
-                    }
-                };
-
-                if (childObj instanceof ComponentInstance) {
-                    const phaserNode = (childObj.phaserObject instanceof ComponentInstance) ? null : childObj.phaserObject;
-                    const isPooled = !!(phaserNode as any)?.__v_pooled;
-                    childObj.unmount();
-                    if (isPooled && phaserNode instanceof Phaser.Physics.Arcade.Sprite) {
-                        cleanupSprite(phaserNode);
-                    }
-                } else {
-                    const sprite = childObj as Phaser.Physics.Arcade.Sprite;
-                    const isPooled = !!(sprite as any)?.__v_pooled;
-                    if (isPooled) {
-                        cleanupSprite(sprite);
-                    } else {
-                        sprite.destroy();
-                    }
-                }
-            } else {
-                if (childObj instanceof ComponentInstance) childObj.unmount();
-                else if (childObj) (childObj as Phaser.GameObjects.GameObject).destroy();
-            }
-        });
-
-        // Save the new children state
-        (parentContainer as any).__v_children = newChildrenData.filter(Boolean);
     }
 
-    return phaserObj;
+    return phaserHandle;
 }
 
 
 // Handlers for specific Phaser object types
-function createPhaserObject(scene: Phaser.Scene, type: string, props: any): Phaser.GameObjects.GameObject {
+function createPhaserObject(scene: Phaser.Scene, type: string, props: any): PhaserHost {
     let obj: any;
     switch (type) {
         case 'container':
@@ -547,6 +727,7 @@ function createPhaserObject(scene: Phaser.Scene, type: string, props: any): Phas
             });
             break;
         case 'rect':
+        case 'graphics':
             obj = scene.add.graphics();
             break;
         case 'sprite':
@@ -570,22 +751,43 @@ function createPhaserObject(scene: Phaser.Scene, type: string, props: any): Phas
 }
 
 function updatePhaserObject(obj: any, type: string, newProps: any, oldProps: any, isMount: boolean = false) {
-    if (isMount || newProps.x !== oldProps.x) obj.x = newProps.x || 0;
-    if (isMount || newProps.y !== oldProps.y) obj.y = newProps.y || 0;
-    if (typeof obj.setAlpha === 'function' && (isMount || newProps.alpha !== oldProps.alpha)) obj.setAlpha(newProps.alpha ?? 1);
-    if (typeof obj.setVisible === 'function' && (isMount || newProps.visible !== oldProps.visible)) obj.setVisible(newProps.visible ?? true);
-    if (typeof obj.setScale === 'function' && (isMount || newProps.scale !== oldProps.scale)) obj.setScale(newProps.scale ?? 1);
+    const isDirect = type === 'direct';
+    const applyDefaultsOnMount = isMount && !isDirect;
+
+    if (isMount || newProps.x !== oldProps.x) {
+        if (newProps.x !== undefined) obj.x = newProps.x;
+        else if (!isDirect && isMount) obj.x = 0;
+    }
+    if (isMount || newProps.y !== oldProps.y) {
+        if (newProps.y !== undefined) obj.y = newProps.y;
+        else if (!isDirect && isMount) obj.y = 0;
+    }
+    if (typeof obj.setAlpha === 'function' && (isMount || newProps.alpha !== oldProps.alpha)) {
+        if (newProps.alpha !== undefined) obj.setAlpha(newProps.alpha);
+        else if (!isDirect && isMount) obj.setAlpha(1);
+    }
+    if (typeof obj.setVisible === 'function' && (isMount || newProps.visible !== oldProps.visible)) {
+        if (newProps.visible !== undefined) obj.setVisible(newProps.visible);
+        else if (!isDirect && isMount) obj.setVisible(true);
+    }
+    if (typeof obj.setScale === 'function' && (isMount || newProps.scale !== oldProps.scale)) {
+        if (newProps.scale !== undefined) obj.setScale(newProps.scale);
+        else if (!isDirect && isMount) obj.setScale(1);
+    }
 
     // Origin handling
     if (typeof obj.setOrigin === 'function' && (isMount || newProps.originX !== oldProps.originX || newProps.originY !== oldProps.originY)) {
         if (newProps.originX !== undefined) {
             obj.setOrigin(newProps.originX, newProps.originY ?? newProps.originX);
-        } else {
+        } else if (!isDirect && isMount) {
             obj.setOrigin(0.5, 0.5); // Default for most things
         }
     }
 
-    if (typeof obj.setRotation === 'function' && (isMount || newProps.rotation !== oldProps.rotation)) obj.setRotation(newProps.rotation ?? 0);
+    if (typeof obj.setRotation === 'function' && (isMount || newProps.rotation !== oldProps.rotation)) {
+        if (newProps.rotation !== undefined) obj.setRotation(newProps.rotation);
+        else if (!isDirect && isMount) obj.setRotation(0);
+    }
 
     // Size (Must be set BEFORE interactive for containers)
     if (newProps.width !== oldProps.width || newProps.height !== oldProps.height) {
@@ -597,7 +799,7 @@ function updatePhaserObject(obj: any, type: string, newProps: any, oldProps: any
     // Interactivity
     if (newProps.interactive !== oldProps.interactive || (newProps.interactive && (newProps.width !== oldProps.width || newProps.height !== oldProps.height))) {
         if (newProps.interactive) {
-            if (type === 'rect' && newProps.width !== undefined && newProps.height !== undefined) {
+            if ((type === 'rect' || type === 'graphics') && newProps.width !== undefined && newProps.height !== undefined) {
                 // Graphics objects do not have a default hit area
                 obj.setInteractive(new Phaser.Geom.Rectangle(0, 0, newProps.width, newProps.height), Phaser.Geom.Rectangle.Contains);
             } else {
@@ -627,6 +829,7 @@ function updatePhaserObject(obj: any, type: string, newProps: any, oldProps: any
 
     // Type specific props
     let effectiveType = type;
+    if (effectiveType === 'graphics') effectiveType = 'rect';
     if (type === 'direct') {
         if (obj instanceof Phaser.Physics.Arcade.Sprite) effectiveType = 'physics-sprite';
         else if (obj instanceof Phaser.GameObjects.Sprite) effectiveType = 'sprite';
@@ -660,16 +863,16 @@ function updatePhaserObject(obj: any, type: string, newProps: any, oldProps: any
             break;
         case 'sprite':
         case 'image':
-            if (isMount || newProps.texture !== oldProps.texture || newProps.frame !== oldProps.frame) {
+            if ((applyDefaultsOnMount || newProps.texture !== oldProps.texture || newProps.frame !== oldProps.frame) && newProps.texture !== undefined) {
                 obj.setTexture(newProps.texture, newProps.frame);
             }
-            if (isMount || newProps.tint !== oldProps.tint) {
+            if (applyDefaultsOnMount || newProps.tint !== oldProps.tint) {
                 if (newProps.tint !== undefined) obj.setTint(newProps.tint);
                 else obj.clearTint();
             }
-            if (isMount || newProps.flipX !== oldProps.flipX) obj.setFlipX(newProps.flipX ?? false);
-            if (isMount || newProps.flipY !== oldProps.flipY) obj.setFlipY(newProps.flipY ?? false);
-            if (isMount || newProps.play !== oldProps.play) {
+            if (applyDefaultsOnMount || newProps.flipX !== oldProps.flipX) obj.setFlipX(newProps.flipX ?? false);
+            if (applyDefaultsOnMount || newProps.flipY !== oldProps.flipY) obj.setFlipY(newProps.flipY ?? false);
+            if (applyDefaultsOnMount || newProps.play !== oldProps.play) {
                 if (newProps.play) {
                     obj.play(newProps.play, true);
                 } else if (!isMount) { // Only stop if it was actually playing and we aren't just mounting
@@ -678,16 +881,16 @@ function updatePhaserObject(obj: any, type: string, newProps: any, oldProps: any
             }
             break;
         case 'physics-sprite':
-            if (isMount || newProps.texture !== oldProps.texture || newProps.frame !== oldProps.frame) {
+            if ((applyDefaultsOnMount || newProps.texture !== oldProps.texture || newProps.frame !== oldProps.frame) && newProps.texture !== undefined) {
                 obj.setTexture(newProps.texture, newProps.frame);
             }
-            if (isMount || newProps.tint !== oldProps.tint) {
+            if (applyDefaultsOnMount || newProps.tint !== oldProps.tint) {
                 if (newProps.tint !== undefined) obj.setTint(newProps.tint);
                 else obj.clearTint();
             }
-            if (isMount || newProps.flipX !== oldProps.flipX) obj.setFlipX(newProps.flipX ?? false);
-            if (isMount || newProps.flipY !== oldProps.flipY) obj.setFlipY(newProps.flipY ?? false);
-            if (isMount || newProps.play !== oldProps.play) {
+            if (applyDefaultsOnMount || newProps.flipX !== oldProps.flipX) obj.setFlipX(newProps.flipX ?? false);
+            if (applyDefaultsOnMount || newProps.flipY !== oldProps.flipY) obj.setFlipY(newProps.flipY ?? false);
+            if (applyDefaultsOnMount || newProps.play !== oldProps.play) {
                 if (newProps.play) {
                     obj.play(newProps.play, true);
                 } else if (!isMount) {
@@ -695,17 +898,17 @@ function updatePhaserObject(obj: any, type: string, newProps: any, oldProps: any
                 }
             }
             // Physics props
-            if (isMount || newProps.velocityX !== oldProps.velocityX) obj.setVelocityX(newProps.velocityX ?? 0);
-            if (isMount || newProps.velocityY !== oldProps.velocityY) obj.setVelocityY(newProps.velocityY ?? 0);
-            if (isMount || newProps.collideWorldBounds !== oldProps.collideWorldBounds) {
+            if (applyDefaultsOnMount || newProps.velocityX !== oldProps.velocityX) obj.setVelocityX(newProps.velocityX ?? 0);
+            if (applyDefaultsOnMount || newProps.velocityY !== oldProps.velocityY) obj.setVelocityY(newProps.velocityY ?? 0);
+            if (applyDefaultsOnMount || newProps.collideWorldBounds !== oldProps.collideWorldBounds) {
                 obj.setCollideWorldBounds(newProps.collideWorldBounds ?? false);
             }
-            if (isMount || newProps.bounce !== oldProps.bounce) obj.setBounce(newProps.bounce ?? 0);
-            if (isMount || newProps.drag !== oldProps.drag) obj.setDrag(newProps.drag ?? 0);
-            if (isMount || newProps.gravityY !== oldProps.gravityY) obj.setGravityY(newProps.gravityY ?? 0);
-            if (isMount || newProps.immovable !== oldProps.immovable) obj.setImmovable(newProps.immovable ?? false);
+            if (applyDefaultsOnMount || newProps.bounce !== oldProps.bounce) obj.setBounce(newProps.bounce ?? 0);
+            if (applyDefaultsOnMount || newProps.drag !== oldProps.drag) obj.setDrag(newProps.drag ?? 0);
+            if (applyDefaultsOnMount || newProps.gravityY !== oldProps.gravityY) obj.setGravityY(newProps.gravityY ?? 0);
+            if (applyDefaultsOnMount || newProps.immovable !== oldProps.immovable) obj.setImmovable(newProps.immovable ?? false);
 
-            if (isMount || newProps.scale !== oldProps.scale || newProps.bodyWidthRatio !== oldProps.bodyWidthRatio || newProps.bodyHeightRatio !== oldProps.bodyHeightRatio) {
+            if (applyDefaultsOnMount || newProps.scale !== oldProps.scale || newProps.bodyWidthRatio !== oldProps.bodyWidthRatio || newProps.bodyHeightRatio !== oldProps.bodyHeightRatio) {
                 if (newProps.bodyWidthRatio !== undefined && newProps.bodyHeightRatio !== undefined) {
                     const scale = newProps.scale ?? obj.scaleX ?? 1;
                     const targetW = obj.width * scale * newProps.bodyWidthRatio;
@@ -728,7 +931,7 @@ function updatePhaserObject(obj: any, type: string, newProps: any, oldProps: any
                     }
                 }
             }
-            if (isMount || newProps.bodyWidth !== oldProps.bodyWidth || newProps.bodyHeight !== oldProps.bodyHeight) {
+            if (applyDefaultsOnMount || newProps.bodyWidth !== oldProps.bodyWidth || newProps.bodyHeight !== oldProps.bodyHeight) {
                 if (newProps.bodyWidth !== undefined && newProps.bodyHeight !== undefined) {
                     if (typeof obj.setBodySize === 'function') {
                         obj.setBodySize(newProps.bodyWidth, newProps.bodyHeight, true);
@@ -737,7 +940,7 @@ function updatePhaserObject(obj: any, type: string, newProps: any, oldProps: any
                     }
                 }
             }
-            if (isMount || newProps.bodyOffsetX !== oldProps.bodyOffsetX || newProps.bodyOffsetY !== oldProps.bodyOffsetY) {
+            if (applyDefaultsOnMount || newProps.bodyOffsetX !== oldProps.bodyOffsetX || newProps.bodyOffsetY !== oldProps.bodyOffsetY) {
                 if (newProps.bodyOffsetX !== undefined || newProps.bodyOffsetY !== undefined) {
                     obj.body.setOffset(newProps.bodyOffsetX ?? 0, newProps.bodyOffsetY ?? 0);
                 }
@@ -748,10 +951,8 @@ function updatePhaserObject(obj: any, type: string, newProps: any, oldProps: any
     // --- Data Manager & Property Sync ---
     // Sync any non-special props into Phaser's Data Manager so obj.getData(key) works.
     // Also try to set directly on the object if the property exists (for custom classes like Bullet)
-    const internalProps = ['x', 'y', 'z', 'w', 'h', 'width', 'height', 'alpha', 'visible', 'scale', 'originX', 'originY', 'rotation', 'interactive', 'useHandCursor', 'onClick', 'onPointerOver', 'onPointerOut', 'texture', 'frame', 'tint', 'flipX', 'flipY', 'play', 'velocityX', 'velocityY', 'collideWorldBounds', 'bounce', 'drag', 'gravityY', 'immovable', 'bodyWidth', 'bodyHeight', 'bodyWidthRatio', 'bodyHeightRatio', 'bodyOffsetX', 'bodyOffsetY', 'ref', 'key', 'children'];
-
     for (const key in newProps) {
-        if (!internalProps.includes(key)) {
+        if (!INTERNAL_PROP_KEYS.has(key)) {
             if (isMount || newProps[key] !== oldProps[key]) {
                 // Try direct property assignment (for custom properties in classes like Bullet)
                 if (key in obj && typeof obj[key] !== 'function') {

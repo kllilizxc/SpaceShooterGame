@@ -8,7 +8,7 @@ interface ActivePowerup {
     y: number;
 }
 
-export function PowerupSpawner({ powerupsGroup }: { powerupsGroup: Phaser.Physics.Arcade.Group }): VNode | null {
+export function PowerupSpawner({ powerupsRef }: { powerupsRef: { current: Phaser.Physics.Arcade.Group | null } }): VNode | null {
     const isPlaying = useStore(useGameStore, s => s.isPlaying);
     const lastSpawnRef = useRef(-60000);
     const [activePowerups, setActivePowerups] = useState<ActivePowerup[]>([]);
@@ -16,6 +16,8 @@ export function PowerupSpawner({ powerupsGroup }: { powerupsGroup: Phaser.Physic
 
     useUpdate((time, delta) => {
         if (!isPlaying) return;
+        const powerupsGroup = powerupsRef.current
+        if (!powerupsGroup) return;
 
         if (time > lastSpawnRef.current + 5000) {
             const x = Phaser.Math.Between(50, 750);
@@ -45,7 +47,10 @@ export function PowerupSpawner({ powerupsGroup }: { powerupsGroup: Phaser.Physic
 
     // CRITICAL: Use native 'physics-sprite' VNodes directly inside the group,
     // NOT function components. Sprites must be pool members for collision detection.
-    return createNode(powerupsGroup, {},
+    return createNode('physics-group', {
+        ref: powerupsRef,
+        config: { classType: Phaser.Physics.Arcade.Sprite, maxSize: 10 }
+    },
         ...activePowerups.map(p => createNode('physics-sprite', {
             key: p.id,
             x: p.x,

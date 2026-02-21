@@ -8,7 +8,7 @@ import mapConfig from "../../../config/map.json"
 
 interface WaveConfig { startTime: number; spawnInterval: number; enemies: any[] }
 
-export function useDebugController({ player }: { player: Phaser.Types.Physics.Arcade.SpriteWithDynamicBody }): void {
+export function useDebugController({ playerRef }: { playerRef: { current: Phaser.Types.Physics.Arcade.SpriteWithDynamicBody | null } }): void {
     const scene = useScene()
     const gameStore = useStore(useGameStore)
     const playerStore = useStore(usePlayerStore)
@@ -18,6 +18,7 @@ export function useDebugController({ player }: { player: Phaser.Types.Physics.Ar
         const kb = scene.input.keyboard
 
         const showDebugText = (message: string, color: string, fontSize = '24px') => {
+            const player = playerRef.current
             if (!player || !player.active) return
             const pos = { x: player.x, y: player.y }
             const text = scene.add.text(pos.x, pos.y - 50, message, { fontSize, color, stroke: '#000000', strokeThickness: 4, fontStyle: 'bold' }).setOrigin(0.5)

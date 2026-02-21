@@ -1,13 +1,14 @@
-import { useUpdate, createNode, VNode, useStore, useState, useEffect } from "../../../lib/react-phaser"
+import Phaser from "phaser"
+import { useUpdate, createNode, VNode, useStore, useState, useLayoutEffect } from "../../../lib/react-phaser"
 import { useGameStore } from "../stores/game"
 import { Bullet, BulletData } from "./Bullet"
 
-export function BulletManager({ bulletsGroup, onFireRef }: { bulletsGroup: Phaser.Physics.Arcade.Group, onFireRef?: { current: ((data: BulletData) => void) | null } }): VNode {
+export function BulletManager({ bulletsRef, onFireRef }: { bulletsRef: { current: Phaser.Physics.Arcade.Group | null }, onFireRef?: { current: ((data: BulletData) => void) | null } }): VNode {
     const isGameOver = useStore(useGameStore, s => s.isGameOver)
     const isLeveling = useStore(useGameStore, s => s.isLeveling)
     const [bullets, setBullets] = useState<BulletData[]>([])
 
-    useEffect(() => {
+    useLayoutEffect(() => {
         if (onFireRef) {
             onFireRef.current = (data) => {
                 setBullets(prev => [...prev, data])
@@ -17,6 +18,8 @@ export function BulletManager({ bulletsGroup, onFireRef }: { bulletsGroup: Phase
 
     useUpdate((time, delta) => {
         if (isGameOver || isLeveling) return
+        const bulletsGroup = bulletsRef.current
+        if (!bulletsGroup) return
 
         // Sync: If a bullet was deactivated by its own logic (lifespan/boundaries),
         // we should remove it from our state array.
@@ -36,7 +39,10 @@ export function BulletManager({ bulletsGroup, onFireRef }: { bulletsGroup: Phase
         }
     })
 
-    return createNode(bulletsGroup, {},
+    return createNode('physics-group', {
+        ref: bulletsRef,
+        config: { classType: Phaser.Physics.Arcade.Sprite, maxSize: 100, defaultKey: null }
+    },
         ...bullets.map(b => createNode(Bullet, {
             key: b.id,
             ...b

@@ -25,5 +25,5 @@
 - If adding tests, prefer Vitest and colocate as `src/**/__tests__/*.test.ts`.
 
 ## Commit & Pull Request Guidelines
-- History is minimal (only “Initial commit”); use short, imperative subjects (e.g., `Add laser bullet config`).
+- History is minimal (e.g., `Initial commit`, `wip`); prefer short, imperative subjects and avoid `wip` (e.g., `Add laser bullet config`).
 - PRs: include a brief description, repro steps, and a screenshot/GIF for visual/gameplay changes; call out modified scenes and any config files touched.

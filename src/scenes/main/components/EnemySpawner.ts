@@ -16,7 +16,7 @@ interface ActiveEnemy {
   stats: any;
 }
 
-export function EnemySpawner({ enemiesGroup }: { enemiesGroup: Phaser.Physics.Arcade.Group }): VNode | null {
+export function EnemySpawner({ enemiesRef }: { enemiesRef: { current: Phaser.Physics.Arcade.Group | null } }): VNode | null {
   const isPlaying = useStore(useGameStore, s => s.isPlaying)
   const gameStore = useGameStore()
   const playerStore = usePlayerStore()
@@ -27,6 +27,8 @@ export function EnemySpawner({ enemiesGroup }: { enemiesGroup: Phaser.Physics.Ar
 
   useUpdate((time, delta) => {
     if (!isPlaying) return
+    const enemiesGroup = enemiesRef.current
+    if (!enemiesGroup) return
 
     // Find current wave config
     const waves = mapConfig.waves as WaveConfig[]
@@ -79,7 +81,10 @@ export function EnemySpawner({ enemiesGroup }: { enemiesGroup: Phaser.Physics.Ar
   // CRITICAL: Use native 'physics-sprite' VNodes directly inside the group,
   // NOT function components. Function components create sprites outside the group,
   // breaking collision detection.
-  return createNode(enemiesGroup, {},
+  return createNode('physics-group', {
+    ref: enemiesRef,
+    config: { classType: Phaser.Physics.Arcade.Sprite, defaultKey: 'enemy', maxSize: 20 }
+  },
     ...activeEnemies.map(enemy => {
       const { stats, type } = enemy
       return createNode('physics-sprite', {
