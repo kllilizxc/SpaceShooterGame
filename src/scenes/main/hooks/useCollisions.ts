@@ -105,6 +105,7 @@ export function useCollisions({ playerRef, bulletsRef, enemiesRef, powerupsRef }
 
         // Player vs Powerups
         const playerVsPowerups = scene.physics.add.overlap(player, powerups, (_p, _powerup) => {
+            console.log('POWERUP COLLISION!', _powerup)
             powerups.clear(true, true)
             showLevelUp() // Powerups trigger level up in this game design
         })
