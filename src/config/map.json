@@ -4,69 +4,134 @@
       "startTime": 0,
       "spawnInterval": 2000,
       "enemies": [
-            { "type": "tank", "weight": 15 },
-        { "type": "heavy", "weight": 25 },
-        { "type": "boss", "weight": 20 },
-        { "type": "boss_mech", "weight": 20 },
-        { "type": "boss_mech2", "weight": 20 }
+        {
+          "type": "basic",
+          "weight": 100
+        }
       ]
     },
     {
       "startTime": 30000,
       "spawnInterval": 1500,
       "enemies": [
-        { "type": "basic", "weight": 70 },
-        { "type": "fast", "weight": 30 }
+        {
+          "type": "basic",
+          "weight": 70
+        },
+        {
+          "type": "fast",
+          "weight": 30
+        }
       ]
     },
     {
       "startTime": 60000,
       "spawnInterval": 1000,
       "enemies": [
-        { "type": "basic", "weight": 50 },
-        { "type": "fast", "weight": 40 },
-        { "type": "tank", "weight": 10 }
+        {
+          "type": "basic",
+          "weight": 50
+        },
+        {
+          "type": "fast",
+          "weight": 40
+        },
+        {
+          "type": "tank",
+          "weight": 10
+        }
       ]
     },
     {
       "startTime": 90000,
       "spawnInterval": 800,
       "enemies": [
-        { "type": "basic", "weight": 20 },
-        { "type": "fast", "weight": 40 },
-        { "type": "tank", "weight": 40 }
+        {
+          "type": "basic",
+          "weight": 20
+        },
+        {
+          "type": "fast",
+          "weight": 40
+        },
+        {
+          "type": "tank",
+          "weight": 40
+        }
       ]
     },
     {
       "startTime": 120000,
       "spawnInterval": 500,
       "enemies": [
-        { "type": "fast", "weight": 40 },
-        { "type": "tank", "weight": 40 },
-        { "type": "heavy", "weight": 15 },
-        { "type": "boss", "weight": 5 }
+        {
+          "type": "fast",
+          "weight": 40
+        },
+        {
+          "type": "tank",
+          "weight": 40
+        },
+        {
+          "type": "heavy",
+          "weight": 15
+        },
+        {
+          "type": "boss",
+          "weight": 5
+        }
       ]
     },
     {
       "startTime": 180000,
       "spawnInterval": 400,
       "enemies": [
-        { "type": "fast", "weight": 25 },
-        { "type": "tank", "weight": 25 },
-        { "type": "heavy", "weight": 25 },
-        { "type": "boss", "weight": 15 },
-        { "type": "boss_mech", "weight": 10 }
+        {
+          "type": "fast",
+          "weight": 25
+        },
+        {
+          "type": "tank",
+          "weight": 25
+        },
+        {
+          "type": "heavy",
+          "weight": 25
+        },
+        {
+          "type": "boss",
+          "weight": 15
+        },
+        {
+          "type": "boss_mech",
+          "weight": 10
+        }
       ]
     },
     {
       "startTime": 240000,
       "spawnInterval": 300,
       "enemies": [
-        { "type": "tank", "weight": 15 },
-        { "type": "heavy", "weight": 25 },
-        { "type": "boss", "weight": 20 },
-        { "type": "boss_mech", "weight": 20 },
-        { "type": "boss_mech2", "weight": 20 }
+        {
+          "type": "tank",
+          "weight": 15
+        },
+        {
+          "type": "heavy",
+          "weight": 25
+        },
+        {
+          "type": "boss",
+          "weight": 20
+        },
+        {
+          "type": "boss_mech",
+          "weight": 20
+        },
+        {
+          "type": "boss_mech2",
+          "weight": 20
+        }
       ]
     }
   ]
