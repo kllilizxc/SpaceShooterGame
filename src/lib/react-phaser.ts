@@ -34,6 +34,58 @@ interface CommitQueue {
 
 let currentCommitQueue: CommitQueue | null = null;
 
+const scheduleMicrotask =
+    (typeof queueMicrotask === 'function')
+        ? queueMicrotask
+        : (callback: () => void) => Promise.resolve().then(callback);
+
+const DEV = !!((import.meta as any).env?.DEV);
+const warnedOnce = new Set<string>();
+
+function devWarnOnce(key: string, message: string) {
+    if (!DEV) return;
+    if (warnedOnce.has(key)) return;
+    warnedOnce.add(key);
+    // eslint-disable-next-line no-console
+    console.warn(message);
+}
+
+const scheduledRenders = new Set<ComponentInstance>();
+let renderFlushScheduled = false;
+
+function scheduleRender(instance: ComponentInstance) {
+    if (instance.unmounted) return;
+    scheduledRenders.add(instance);
+    if (renderFlushScheduled) return;
+    renderFlushScheduled = true;
+
+    scheduleMicrotask(() => {
+        renderFlushScheduled = false;
+        const toRender = Array.from(scheduledRenders);
+        scheduledRenders.clear();
+
+        for (const inst of toRender) {
+            if (!inst.unmounted) inst.render();
+        }
+    });
+}
+
+function clearVNodeRefs(vnode: VNode | null) {
+    if (!vnode) return;
+
+    const isHostVNode = (typeof vnode.type === 'string') || (typeof vnode.type === 'object' && vnode.type !== null);
+    if (isHostVNode) {
+        const ref = vnode.props?.ref;
+        if (ref && typeof ref === 'object' && 'current' in ref) {
+            (ref as any).current = null;
+        }
+    }
+
+    for (const child of vnode.children) {
+        clearVNodeRefs(child);
+    }
+}
+
 function isHostSlot(value: any): value is HostSlot {
     return !!value && typeof value === 'object' && value.__v_slot === true;
 }
@@ -53,7 +105,7 @@ function createHostSlot<T extends PhaserHost>(kind: HostSlot<T>['kind'], expecte
 }
 
 const INTERNAL_PROP_KEYS = new Set([
-    'x', 'y', 'z', 'w', 'h',
+    'x', 'y', 'z', 'depth', 'w', 'h',
     'width', 'height',
     'alpha', 'visible', 'scale',
     'originX', 'originY',
@@ -62,6 +114,9 @@ const INTERNAL_PROP_KEYS = new Set([
     'texture', 'frame', 'tint', 'flipX', 'flipY', 'play',
     'velocityX', 'velocityY', 'collideWorldBounds', 'bounce', 'drag', 'gravityY', 'immovable',
     'bodyWidth', 'bodyHeight', 'bodyWidthRatio', 'bodyHeightRatio', 'bodyOffsetX', 'bodyOffsetY',
+    'text', 'fontSize', 'color', 'fontStyle', 'align', 'wordWrapWidth', 'wordWrapAdvanced',
+    'fill', 'strokeWidth', 'lineColor',
+    'config',
     'ref', 'key', 'children',
 ]);
 
@@ -175,6 +230,10 @@ class ComponentInstance {
             if (h.cleanup) h.cleanup();
         });
 
+        const oldVNode = this.renderedVNode;
+        this.renderedVNode = null;
+        clearVNodeRefs(oldVNode);
+
         // Destroy owned phaser objects (and their children)
         if (this.phaserObject instanceof ComponentInstance) {
             this.phaserObject.unmount();
@@ -224,8 +283,7 @@ export function useState<T>(initialValue: T | (() => T)): [T, (val: T | ((prev: 
         const nextState = typeof newVal === 'function' ? (newVal as Function)(ctx.hooks[index].state) : newVal;
         if (nextState !== ctx.hooks[index].state) {
             ctx.hooks[index].state = nextState;
-            // Schedule re-render (synchronously for now to keep it simple, or requestAnimationFrame)
-            ctx.render();
+            scheduleRender(ctx);
         }
     };
 
@@ -255,10 +313,10 @@ export function useStore<T, U = T>(storeHook: () => T, selector?: (store: T) => 
                     const nextValue = latestSelector(latestStore);
                     if (nextValue !== ctx.hooks[index].state.value) {
                         ctx.hooks[index].state.value = nextValue;
-                        ctx.render();
+                        scheduleRender(ctx);
                     }
                 } else {
-                    ctx.render();
+                    scheduleRender(ctx);
                 }
             });
 
@@ -269,7 +327,7 @@ export function useStore<T, U = T>(storeHook: () => T, selector?: (store: T) => 
             const nextValue = latestSelector ? latestSelector(latestStore) : latestStore;
             if (nextValue !== ctx.hooks[index].state.value) {
                 ctx.hooks[index].state.value = nextValue;
-                ctx.render();
+                scheduleRender(ctx);
             }
         });
     }
@@ -442,6 +500,12 @@ function reconcile(
 
     // 1. Remove old
     if (!newNode) {
+        if (oldNode?.props?.ref && typeof oldNode.props.ref === 'object' && 'current' in oldNode.props.ref) {
+            const ref = oldNode.props.ref;
+            commitQueue.ops.push(() => {
+                (ref as any).current = null;
+            });
+        }
         scheduleDestroy(existingObj);
         return null;
     }
@@ -503,6 +567,12 @@ function reconcile(
     }
 
     if (isNew) {
+        if (oldNode?.props?.ref && oldNode.props.ref !== newNode.props.ref && typeof oldNode.props.ref === 'object' && 'current' in oldNode.props.ref) {
+            const ref = oldNode.props.ref;
+            commitQueue.ops.push(() => {
+                (ref as any).current = null;
+            });
+        }
         // Teardown old
         scheduleDestroy(existingObj);
 
@@ -541,7 +611,15 @@ function reconcile(
         commitQueue.ops.push(() => {
             const obj = resolveHost(phaserHandle as any);
             if (!obj) return;
-            updatePhaserObject(obj, nodeType, newNode.props, oldNode?.props || {}, !oldNode);
+            const previousProps = oldNode?.props || (obj as any).__v_props || {};
+            updatePhaserObject(obj, nodeType, newNode.props, previousProps, !oldNode);
+        });
+    }
+
+    if (oldNode?.props?.ref && oldNode.props.ref !== newNode.props.ref && typeof oldNode.props.ref === 'object' && 'current' in oldNode.props.ref) {
+        const ref = oldNode.props.ref;
+        commitQueue.ops.push(() => {
+            (ref as any).current = null;
         });
     }
 
@@ -566,6 +644,28 @@ function reconcile(
         // We store the reconciled children on the phaser object so we can diff them next time.
         const oldChildrenData: InstanceChild[] = (parentContainerNow as any)?.__v_children || [];
         const newChildrenData: InstanceChild[] = [];
+
+        if (DEV) {
+            let keyed = 0;
+            let unkeyed = 0;
+            for (const childVNode of newNode.children) {
+                const key = childVNode.props?.key ?? childVNode.key;
+                if (key === undefined) unkeyed++;
+                else keyed++;
+            }
+
+            if (isGroup && unkeyed > 0 && newNode.children.length > 1) {
+                devWarnOnce(
+                    'react-phaser:physics-group:missing-keys',
+                    "react-phaser: children of 'physics-group' should be keyed for stable pooling/reuse."
+                );
+            } else if (isContainer && keyed > 0 && unkeyed > 0) {
+                devWarnOnce(
+                    'react-phaser:container:mixed-keys',
+                    "react-phaser: avoid mixing keyed and unkeyed children under a 'container' (key dynamic lists)."
+                );
+            }
+        }
 
         // Map old children by key for faster/stable lookups
         const oldChildrenMap = new Map<string | number, InstanceChild>();
@@ -704,6 +804,28 @@ function reconcile(
                     }
                 }
                 (host as any).__v_children = resolvedChildren;
+
+                // Ensure display order matches VNode order for containers (keyed reorders should reorder visually).
+                if (host instanceof Phaser.GameObjects.Container) {
+                    const desired: Phaser.GameObjects.GameObject[] = [];
+                    for (const child of newChildrenData) {
+                        const resolvedChild = (child instanceof ComponentInstance)
+                            ? resolveHost((child as any).phaserObject as any)
+                            : resolveHost(child as any);
+                        if (resolvedChild && resolvedChild instanceof Phaser.GameObjects.GameObject) {
+                            desired.push(resolvedChild);
+                        }
+                    }
+
+                    for (let i = 0; i < desired.length; i++) {
+                        const childObj = desired[i];
+                        const currentIndex = host.getIndex(childObj);
+                        if (currentIndex !== i && currentIndex !== -1) {
+                            host.remove(childObj);
+                            host.addAt(childObj, i);
+                        }
+                    }
+                }
             }
         });
     }
@@ -723,7 +845,9 @@ function createPhaserObject(scene: Phaser.Scene, type: string, props: any): Phas
             obj = scene.add.text(props.x || 0, props.y || 0, props.text || '', {
                 fontSize: props.fontSize ? (typeof props.fontSize === 'number' ? `${props.fontSize}px` : props.fontSize) : '16px',
                 color: props.color || '#ffffff',
-                fontStyle: props.fontStyle || 'normal'
+                fontStyle: props.fontStyle || 'normal',
+                align: props.align,
+                wordWrap: props.wordWrapWidth !== undefined ? { width: props.wordWrapWidth, useAdvancedWrap: props.wordWrapAdvanced ?? false } : undefined,
             });
             break;
         case 'rect':
@@ -764,29 +888,37 @@ function updatePhaserObject(obj: any, type: string, newProps: any, oldProps: any
     }
     if (typeof obj.setAlpha === 'function' && (isMount || newProps.alpha !== oldProps.alpha)) {
         if (newProps.alpha !== undefined) obj.setAlpha(newProps.alpha);
-        else if (!isDirect && isMount) obj.setAlpha(1);
+        else if (!isDirect) obj.setAlpha(1);
     }
     if (typeof obj.setVisible === 'function' && (isMount || newProps.visible !== oldProps.visible)) {
         if (newProps.visible !== undefined) obj.setVisible(newProps.visible);
-        else if (!isDirect && isMount) obj.setVisible(true);
+        else if (!isDirect) obj.setVisible(true);
     }
     if (typeof obj.setScale === 'function' && (isMount || newProps.scale !== oldProps.scale)) {
         if (newProps.scale !== undefined) obj.setScale(newProps.scale);
-        else if (!isDirect && isMount) obj.setScale(1);
+        else if (!isDirect) obj.setScale(1);
     }
 
     // Origin handling
     if (typeof obj.setOrigin === 'function' && (isMount || newProps.originX !== oldProps.originX || newProps.originY !== oldProps.originY)) {
         if (newProps.originX !== undefined) {
             obj.setOrigin(newProps.originX, newProps.originY ?? newProps.originX);
-        } else if (!isDirect && isMount) {
+        } else if (!isDirect) {
             obj.setOrigin(0.5, 0.5); // Default for most things
         }
     }
 
     if (typeof obj.setRotation === 'function' && (isMount || newProps.rotation !== oldProps.rotation)) {
         if (newProps.rotation !== undefined) obj.setRotation(newProps.rotation);
-        else if (!isDirect && isMount) obj.setRotation(0);
+        else if (!isDirect) obj.setRotation(0);
+    }
+
+    // Depth / layering
+    const newDepth = newProps.depth ?? newProps.z;
+    const oldDepth = oldProps.depth ?? oldProps.z;
+    if (typeof obj.setDepth === 'function' && (isMount || newDepth !== oldDepth)) {
+        if (newDepth !== undefined) obj.setDepth(newDepth);
+        else if (!isDirect) obj.setDepth(0);
     }
 
     // Size (Must be set BEFORE interactive for containers)
@@ -799,6 +931,19 @@ function updatePhaserObject(obj: any, type: string, newProps: any, oldProps: any
     // Interactivity
     if (newProps.interactive !== oldProps.interactive || (newProps.interactive && (newProps.width !== oldProps.width || newProps.height !== oldProps.height))) {
         if (newProps.interactive) {
+            if ((type === 'rect' || type === 'graphics') && (newProps.width === undefined || newProps.height === undefined)) {
+                devWarnOnce(
+                    'react-phaser:interactive:graphics-missing-size',
+                    "react-phaser: 'rect'/'graphics' with interactive=true should specify width and height to create a hit area."
+                );
+            }
+            if (type === 'container' && (newProps.width === undefined || newProps.height === undefined)) {
+                devWarnOnce(
+                    'react-phaser:interactive:container-missing-size',
+                    "react-phaser: 'container' with interactive=true should specify width and height (Containers have no intrinsic hit area)."
+                );
+            }
+
             if ((type === 'rect' || type === 'graphics') && newProps.width !== undefined && newProps.height !== undefined) {
                 // Graphics objects do not have a default hit area
                 obj.setInteractive(new Phaser.Geom.Rectangle(0, 0, newProps.width, newProps.height), Phaser.Geom.Rectangle.Contains);
@@ -841,7 +986,34 @@ function updatePhaserObject(obj: any, type: string, newProps: any, oldProps: any
     switch (effectiveType) {
         case 'text':
             if (newProps.text !== oldProps.text) obj.setText(newProps.text || '');
-            // Add other text properties if needed, e.g., style
+            if (applyDefaultsOnMount || newProps.fontSize !== oldProps.fontSize) {
+                const fontSize = newProps.fontSize !== undefined
+                    ? (typeof newProps.fontSize === 'number' ? `${newProps.fontSize}px` : newProps.fontSize)
+                    : '16px';
+                if (typeof obj.setFontSize === 'function') obj.setFontSize(fontSize);
+                else if (typeof obj.setStyle === 'function') obj.setStyle({ fontSize });
+            }
+            if (applyDefaultsOnMount || newProps.color !== oldProps.color) {
+                const color = newProps.color ?? '#ffffff';
+                if (typeof obj.setColor === 'function') obj.setColor(color);
+                else if (typeof obj.setStyle === 'function') obj.setStyle({ color });
+            }
+            if (applyDefaultsOnMount || newProps.fontStyle !== oldProps.fontStyle) {
+                const fontStyle = newProps.fontStyle ?? 'normal';
+                if (typeof obj.setFontStyle === 'function') obj.setFontStyle(fontStyle);
+                else if (typeof obj.setStyle === 'function') obj.setStyle({ fontStyle });
+            }
+            if (applyDefaultsOnMount || newProps.align !== oldProps.align) {
+                const align = newProps.align ?? 'left';
+                if (typeof obj.setAlign === 'function') obj.setAlign(align);
+                else if (typeof obj.setStyle === 'function') obj.setStyle({ align });
+            }
+            if (applyDefaultsOnMount || newProps.wordWrapWidth !== oldProps.wordWrapWidth || newProps.wordWrapAdvanced !== oldProps.wordWrapAdvanced) {
+                const width = newProps.wordWrapWidth ?? null;
+                const useAdvanced = newProps.wordWrapAdvanced ?? false;
+                if (typeof obj.setWordWrapWidth === 'function') obj.setWordWrapWidth(width, useAdvanced);
+                else if (obj.style && typeof obj.style.setWordWrapWidth === 'function') obj.style.setWordWrapWidth(width, useAdvanced);
+            }
             break;
         case 'rect':
             // Only redraw graphics if properties changed
@@ -873,11 +1045,8 @@ function updatePhaserObject(obj: any, type: string, newProps: any, oldProps: any
             if (applyDefaultsOnMount || newProps.flipX !== oldProps.flipX) obj.setFlipX(newProps.flipX ?? false);
             if (applyDefaultsOnMount || newProps.flipY !== oldProps.flipY) obj.setFlipY(newProps.flipY ?? false);
             if (applyDefaultsOnMount || newProps.play !== oldProps.play) {
-                if (newProps.play) {
-                    obj.play(newProps.play, true);
-                } else if (!isMount) { // Only stop if it was actually playing and we aren't just mounting
-                    obj.stop();
-                }
+                if (newProps.play && typeof obj.play === 'function') obj.play(newProps.play, true);
+                else if (typeof obj.stop === 'function') obj.stop();
             }
             break;
         case 'physics-sprite':
@@ -891,11 +1060,8 @@ function updatePhaserObject(obj: any, type: string, newProps: any, oldProps: any
             if (applyDefaultsOnMount || newProps.flipX !== oldProps.flipX) obj.setFlipX(newProps.flipX ?? false);
             if (applyDefaultsOnMount || newProps.flipY !== oldProps.flipY) obj.setFlipY(newProps.flipY ?? false);
             if (applyDefaultsOnMount || newProps.play !== oldProps.play) {
-                if (newProps.play) {
-                    obj.play(newProps.play, true);
-                } else if (!isMount) {
-                    obj.stop();
-                }
+                if (newProps.play && typeof obj.play === 'function') obj.play(newProps.play, true);
+                else if (typeof obj.stop === 'function') obj.stop();
             }
             // Physics props
             if (applyDefaultsOnMount || newProps.velocityX !== oldProps.velocityX) obj.setVelocityX(newProps.velocityX ?? 0);
@@ -951,18 +1117,28 @@ function updatePhaserObject(obj: any, type: string, newProps: any, oldProps: any
     // --- Data Manager & Property Sync ---
     // Sync any non-special props into Phaser's Data Manager so obj.getData(key) works.
     // Also try to set directly on the object if the property exists (for custom classes like Bullet)
-    for (const key in newProps) {
-        if (!INTERNAL_PROP_KEYS.has(key)) {
-            if (isMount || newProps[key] !== oldProps[key]) {
-                // Try direct property assignment (for custom properties in classes like Bullet)
-                if (key in obj && typeof obj[key] !== 'function') {
-                    obj[key] = newProps[key];
-                }
+    const removedDataKeys: string[] = [];
+    if (obj.data && typeof obj.data.remove === 'function') {
+        for (const key in oldProps) {
+            if (INTERNAL_PROP_KEYS.has(key)) continue;
+            const hasNewValue = Object.prototype.hasOwnProperty.call(newProps, key) && newProps[key] !== undefined;
+            if (!hasNewValue) removedDataKeys.push(key);
+        }
+    }
+    if (removedDataKeys.length > 0) {
+        obj.data.remove(removedDataKeys);
+    }
 
-                // Sync to Data Manager
-                if (typeof obj.setData === 'function') {
-                    obj.setData(key, newProps[key]);
-                }
+    for (const key in newProps) {
+        if (INTERNAL_PROP_KEYS.has(key)) continue;
+        const value = newProps[key];
+        if (value === undefined) continue;
+        if (isMount || value !== oldProps[key]) {
+            if (key in obj && typeof obj[key] !== 'function') {
+                obj[key] = value;
+            }
+            if (typeof obj.setData === 'function') {
+                obj.setData(key, value);
             }
         }
     }
@@ -972,14 +1148,27 @@ function updatePhaserObject(obj: any, type: string, newProps: any, oldProps: any
 
 export function mountRoot(scene: Phaser.Scene, rootComponent: Function, props: any = {}) {
     const root = new ComponentInstance(scene, rootComponent, props);
+    let disposed = false;
+
+    const dispose = () => {
+        if (disposed) return;
+        disposed = true;
+        scene.events.off('shutdown', dispose);
+        scene.events.off('destroy', dispose);
+        root.unmount();
+    };
+
+    scene.events.once('shutdown', dispose);
+    scene.events.once('destroy', dispose);
     root.render();
     return {
         update: (newProps: any) => {
+            if (disposed) return;
             root.props = newProps;
             root.render();
         },
         unmount: () => {
-            root.unmount();
+            dispose();
         }
     };
 }

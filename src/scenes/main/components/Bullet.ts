@@ -90,6 +90,9 @@ export function Bullet(props: any): VNode {
   const texture = bulletType === BulletType.NORMAL ? 'bullet' : `bullet_${bulletType}`
   const play = `bulletFire_${bulletType}`
 
+  const originX = props.originX ?? config.origin?.x
+  const originY = props.originY ?? config.origin?.y
+
   const velocityX = levelData.flySpeed === 0 ? 0 : angleOffset * levelData.flySpeed * 0.25
   const velocityY = -levelData.flySpeed
 
@@ -180,6 +183,8 @@ export function Bullet(props: any): VNode {
     ref: spriteRef,
     texture,
     play,
+    originX,
+    originY,
     velocityX,
     velocityY,
     rotation,

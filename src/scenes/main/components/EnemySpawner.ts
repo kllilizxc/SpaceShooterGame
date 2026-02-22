@@ -34,23 +34,6 @@ export function EnemySpawner({ enemiesRef }: { enemiesRef: { current: Phaser.Phy
     const waves = mapConfig.waves as WaveConfig[]
     const currentWave = waves[gameStore.wave - 1] || waves[0]
 
-    // Spawn logic
-    if (time > lastSpawnRef.current + currentWave.spawnInterval) {
-      const type = pickEnemyType(currentWave.enemies)
-      const stats = (enemyConfig.types as Record<string, any>)[type]
-      const x = Phaser.Math.Between(50, 750)
-
-      setEnemies(prev => [...prev, {
-        id: nextIdCounter.current++,
-        x,
-        y: -50,
-        type,
-        stats
-      }])
-
-      lastSpawnRef.current = time
-    }
-
     // 1. Check for offscreen enemies and apply damage (Side effect)
     let damageToTake = 0
     enemiesGroup.children.each((child) => {
@@ -76,6 +59,23 @@ export function EnemySpawner({ enemiesRef }: { enemiesRef: { current: Phaser.Phy
       const toKeep = prev.filter(e => activeObjectMap.has(e.id))
       return toKeep.length !== prev.length ? toKeep : prev
     })
+
+    // 3. Spawn logic (after syncing)
+    if (time > lastSpawnRef.current + currentWave.spawnInterval) {
+      const type = pickEnemyType(currentWave.enemies)
+      const stats = (enemyConfig.types as Record<string, any>)[type]
+      const x = Phaser.Math.Between(50, 750)
+
+      setEnemies(prev => [...prev, {
+        id: nextIdCounter.current++,
+        x,
+        y: -50,
+        type,
+        stats
+      }])
+
+      lastSpawnRef.current = time
+    }
   })
 
   // CRITICAL: Use native 'physics-sprite' VNodes directly inside the group,

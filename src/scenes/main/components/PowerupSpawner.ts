@@ -19,16 +19,6 @@ export function PowerupSpawner({ powerupsRef }: { powerupsRef: { current: Phaser
         const powerupsGroup = powerupsRef.current
         if (!powerupsGroup) return;
 
-        if (time > lastSpawnRef.current + 5000) {
-            const x = Phaser.Math.Between(50, 750);
-            setActivePowerups(prev => [...prev, {
-                id: nextIdCounter.current++,
-                x,
-                y: -30
-            }]);
-            lastSpawnRef.current = time;
-        }
-
         // Cleanup offscreen powerups
         setActivePowerups(prev => {
             const activeObjectMap = new Map<number, boolean>();
@@ -43,6 +33,17 @@ export function PowerupSpawner({ powerupsRef }: { powerupsRef: { current: Phaser
             const toKeep = prev.filter(p => activeObjectMap.has(p.id));
             return toKeep.length !== prev.length ? toKeep : prev;
         });
+
+        // Spawn logic (after syncing)
+        if (time > lastSpawnRef.current + 5000) {
+            const x = Phaser.Math.Between(50, 750);
+            setActivePowerups(prev => [...prev, {
+                id: nextIdCounter.current++,
+                x,
+                y: -30
+            }]);
+            lastSpawnRef.current = time;
+        }
     });
 
     // CRITICAL: Use native 'physics-sprite' VNodes directly inside the group,
