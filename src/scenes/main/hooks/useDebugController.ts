@@ -1,7 +1,7 @@
 import Phaser from "phaser"
 import { useGameStore } from "../stores/game"
 import { usePlayerStore } from "../stores/player"
-import { useScene, onMount, useStore } from "../../../lib/react-phaser"
+import { useScene, onMount } from "../../../lib/react-phaser"
 import { BulletType } from "../components/Bullet"
 import mapConfig from "../../../config/map.json"
 
@@ -10,8 +10,8 @@ interface WaveConfig { startTime: number; spawnInterval: number; enemies: any[] 
 
 export function useDebugController({ playerRef }: { playerRef: { current: Phaser.Types.Physics.Arcade.SpriteWithDynamicBody | null } }): void {
     const scene = useScene()
-    const gameStore = useStore(useGameStore)
-    const playerStore = useStore(usePlayerStore)
+    const gameStore = useGameStore()
+    const playerStore = usePlayerStore()
 
     onMount(() => {
         if (!scene.input.keyboard) return

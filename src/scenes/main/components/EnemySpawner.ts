@@ -51,8 +51,8 @@ export function EnemySpawner({ enemiesRef }: { enemiesRef: { current: Phaser.Phy
       const activeObjectMap = new Map<number, boolean>()
       enemiesGroup.children.each((child) => {
         const s = child as Phaser.Physics.Arcade.Sprite
-        const key = (s as any)?.__v_props?.key
-        if (s.active && key !== undefined) activeObjectMap.set(key, true)
+        const id = s.getData("id") as number | undefined
+        if (s.active && id !== undefined) activeObjectMap.set(id, true)
         return true
       })
 
@@ -78,9 +78,7 @@ export function EnemySpawner({ enemiesRef }: { enemiesRef: { current: Phaser.Phy
     }
   })
 
-  // CRITICAL: Use native 'physics-sprite' VNodes directly inside the group,
-  // NOT function components. Function components create sprites outside the group,
-  // breaking collision detection.
+  // Children must resolve to a single 'physics-sprite' so the group can pool/reuse sprites.
   return createNode('physics-group', {
     ref: enemiesRef,
     config: { classType: Phaser.Physics.Arcade.Sprite, defaultKey: 'enemy', maxSize: 20 }
@@ -89,6 +87,7 @@ export function EnemySpawner({ enemiesRef }: { enemiesRef: { current: Phaser.Phy
       const { stats, type } = enemy
       return createNode('physics-sprite', {
         key: enemy.id,
+        id: enemy.id,
         x: enemy.x,
         y: enemy.y,
         texture: stats.spritePath,

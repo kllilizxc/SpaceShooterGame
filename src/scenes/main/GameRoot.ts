@@ -12,19 +12,18 @@ import { useCollisions } from "./hooks/useCollisions"
 import { BulletManager } from "./components/BulletManager"
 
 function GameOverScreen(): VNode | null {
-    const isGameOver = useStore(useGameStore, s => s.isGameOver)
-    const game = useStore(useGameStore)
-    const player = useStore(usePlayerStore)
+    const gameOverTime = useStore(useGameStore, s => (s.isGameOver ? s.time : null))
+    const finalLevel = useStore(usePlayerStore, s => s.level)
 
-    if (!isGameOver) return null
+    if (gameOverTime === null) return null
 
-    const totalSeconds = Math.floor(game.time / 1000)
+    const totalSeconds = Math.floor(gameOverTime / 1000)
     const mins = Math.floor(totalSeconds / 60).toString().padStart(2, '0')
     const secs = (totalSeconds % 60).toString().padStart(2, '0')
 
     return createNode('container', {},
         createNode('text', { x: 400, y: 300, text: 'GAME OVER', fontSize: 64, color: '#ff0000', fontStyle: 'bold', originX: 0.5, originY: 0.5 }),
-        createNode('text', { x: 400, y: 370, text: `Final Level: ${player.level}`, fontSize: 24, color: '#ffffff', originX: 0.5, originY: 0.5 }),
+        createNode('text', { x: 400, y: 370, text: `Final Level: ${finalLevel}`, fontSize: 24, color: '#ffffff', originX: 0.5, originY: 0.5 }),
         createNode('text', { x: 400, y: 410, text: `Time Survived: ${mins}:${secs}`, fontSize: 24, color: '#ffffff', originX: 0.5, originY: 0.5 }),
         createNode('text', { x: 400, y: 450, text: 'Press any key to Restart', fontSize: 24, color: '#ffffff', originX: 0.5, originY: 0.5 })
     )

@@ -1,5 +1,5 @@
 import Phaser from "phaser"
-import { useScene, onMount, useStore } from "../../../lib/react-phaser"
+import { useScene, onMount } from "../../../lib/react-phaser"
 import { usePlayerStore } from "../stores/player"
 import { useGameStore } from "../stores/game"
 import { createExplosion } from "../components/HUD"
@@ -19,12 +19,11 @@ interface CollisionProps {
 
 export function useCollisions({ playerRef, bulletsRef, enemiesRef, powerupsRef }: CollisionProps) {
     const scene = useScene()
-    const playerStore = useStore(usePlayerStore)
-    const isLeveling = useStore(useGameStore, s => s.isLeveling)
+    const playerStore = usePlayerStore()
     const gameStore = useGameStore()
 
     const showLevelUp = () => {
-        if (isLeveling) return
+        if (gameStore.isLeveling) return
         gameStore.setPhase("leveling")
     }
 
@@ -42,7 +41,7 @@ export function useCollisions({ playerRef, bulletsRef, enemiesRef, powerupsRef }
     }
 
     const addXP = (amount: number) => {
-        if (isLeveling) return
+        if (gameStore.isLeveling) return
         const leveledUp = playerStore.addXP(amount)
         if (leveledUp) {
             showLevelUp()
@@ -63,6 +62,7 @@ export function useCollisions({ playerRef, bulletsRef, enemiesRef, powerupsRef }
             const bullet = bulletObj as ActiveBullet
             const enemy = enemyObj as Phaser.Physics.Arcade.Sprite
             if (!bullet.active || !enemy.active) return
+            if (typeof bullet.canHit !== "function" || typeof bullet.getDamage !== "function") return
             if (!bullet.canHit(enemy, scene.time.now)) return
 
             let health = enemy.getData("health") - bullet.getDamage()
@@ -105,8 +105,9 @@ export function useCollisions({ playerRef, bulletsRef, enemiesRef, powerupsRef }
 
         // Player vs Powerups
         const playerVsPowerups = scene.physics.add.overlap(player, powerups, (_p, _powerup) => {
-            console.log('POWERUP COLLISION!', _powerup)
-            powerups.clear(true, true)
+            const powerup = _powerup as Phaser.Physics.Arcade.Sprite
+            powerup.setActive(false).setVisible(false)
+            if (powerup.body) (powerup.body as Phaser.Physics.Arcade.Body).setEnable(false)
             showLevelUp() // Powerups trigger level up in this game design
         })
 

@@ -1,7 +1,7 @@
 import Phaser from "phaser"
 import { usePlayerStore } from "../stores/player"
 import { useGameStore } from "../stores/game"
-import { createNode, useStore, useState, VNode, onMount } from "../../../lib/react-phaser"
+import { createNode, useEffect, useStore, useState, VNode } from "../../../lib/react-phaser"
 import { getAvailablePowerups } from "../../../config/GameStats"
 
 interface UpgradeCardProps {
@@ -54,22 +54,29 @@ function UpgradeCard({ choice, index, themeColor, onSelect }: UpgradeCardProps):
 }
 
 export function LevelUpPanel(): VNode | null {
-    const game = useStore(useGameStore);
-    const player = useStore(usePlayerStore);
+    const phase = useStore(useGameStore, s => s.phase);
+    const gameStore = useGameStore()
+    const playerStore = usePlayerStore()
     const [choices, setChoices] = useState<any[]>([]);
 
-    // Generate choices only once when the panel mounts
-    onMount(() => {
-        // We only want to generate these once per level up phase to keep them stable
-        const available = getAvailablePowerups(player.upgrades).sort(() => Math.random() - 0.5).slice(0, 3);
-        setChoices(available);
-    });
+    // Generate choices when entering the leveling phase (stable during the selection)
+    useEffect(() => {
+        if (phase !== "leveling") {
+            setChoices(prev => (prev.length > 0 ? [] : prev))
+            return
+        }
 
-    if (game.phase !== 'leveling') return null;
+        const available = getAvailablePowerups(playerStore.upgrades)
+            .sort(() => Math.random() - 0.5)
+            .slice(0, 3)
+        setChoices(available)
+    }, [phase]);
+
+    if (phase !== 'leveling') return null;
 
     const handleSelect = (type: string) => {
-        player.applyUpgrade(type);
-        game.setPhase('playing');
+        playerStore.applyUpgrade(type);
+        gameStore.setPhase('playing');
     };
 
     const themeColor = '#00ffff';

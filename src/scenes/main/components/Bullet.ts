@@ -174,7 +174,7 @@ export function Bullet(props: any): VNode {
       delete sprite.canHit;
       delete sprite.getDamage;
     };
-  });
+  }, [bulletType, level]);
 
   // Delegate rendering to physics-sprite. 
   // We pass all derived props to ensure they are synchronized to the native object.

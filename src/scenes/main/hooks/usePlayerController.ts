@@ -3,7 +3,7 @@ import { BulletType, BULLET_CONFIGS } from "../components/Bullet"
 import { GAME_CONFIG } from "../../../config/GameStats"
 import { usePlayerStore } from "../stores/player"
 import { useGameStore } from "../stores/game"
-import { createNode, useStore, useUpdate, useRef, onMount, useScene, VNode } from "../../../lib/react-phaser"
+import { useUpdate, useRef, onMount, useScene } from "../../../lib/react-phaser"
 
 interface PlayerControllerProps {
   playerRef: { current: Phaser.Types.Physics.Arcade.SpriteWithDynamicBody | null }
@@ -12,8 +12,8 @@ interface PlayerControllerProps {
 
 export function usePlayerController({ playerRef, onFire }: PlayerControllerProps): void {
   const scene = useScene()
-  const isPlaying = useStore(useGameStore, s => s.isPlaying)
-  const playerStore = useStore(usePlayerStore)
+  const gameStore = useGameStore()
+  const playerStore = usePlayerStore()
 
   const keysRef = useRef<{ w: Phaser.Input.Keyboard.Key; a: Phaser.Input.Keyboard.Key; s: Phaser.Input.Keyboard.Key; d: Phaser.Input.Keyboard.Key } | null>(null)
   const lastFiredRef = useRef<Record<string, number>>({})
@@ -31,7 +31,7 @@ export function usePlayerController({ playerRef, onFire }: PlayerControllerProps
   })
 
   useUpdate((time, delta) => {
-    if (!isPlaying) return
+    if (!gameStore.isPlaying) return
     const player = playerRef.current
     if (!player || !player.active) return
 

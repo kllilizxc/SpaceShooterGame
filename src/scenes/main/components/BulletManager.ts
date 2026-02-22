@@ -9,10 +9,12 @@ export function BulletManager({ bulletsRef, onFireRef }: { bulletsRef: { current
     const [bullets, setBullets] = useState<BulletData[]>([])
 
     useLayoutEffect(() => {
-        if (onFireRef) {
-            onFireRef.current = (data) => {
-                setBullets(prev => [...prev, data])
-            }
+        if (!onFireRef) return
+
+        const fire = (data: BulletData) => setBullets(prev => [...prev, data])
+        onFireRef.current = fire
+        return () => {
+            if (onFireRef.current === fire) onFireRef.current = null
         }
     }, [onFireRef])
 
@@ -26,8 +28,8 @@ export function BulletManager({ bulletsRef, onFireRef }: { bulletsRef: { current
         const activeIds = new Map<number, boolean>()
         bulletsGroup.children.each((child) => {
             const s = child as Phaser.Physics.Arcade.Sprite
-            const key = (s as any)?.__v_props?.key
-            if (s.active && key !== undefined) activeIds.set(key, true)
+            const id = s.getData("id") as number | undefined
+            if (s.active && id !== undefined) activeIds.set(id, true)
             return true
         })
 

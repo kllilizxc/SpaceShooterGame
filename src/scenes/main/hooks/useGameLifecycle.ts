@@ -1,4 +1,4 @@
-import { onMount, useUpdate, useStore } from "../../../lib/react-phaser"
+import { onMount, useUpdate } from "../../../lib/react-phaser"
 import { useGameStore } from "../stores/game"
 import { usePlayerStore } from "../stores/player"
 import { Bullet } from "../components/Bullet"
@@ -9,8 +9,6 @@ interface WaveEnemy { type: string; weight: number }
 interface WaveConfig { startTime: number; spawnInterval: number; enemies: WaveEnemy[] }
 
 export function useGameLifecycle() {
-    const isGameOver = useStore(useGameStore, s => s.isGameOver)
-    const isLeveling = useStore(useGameStore, s => s.isLeveling)
     const gameStore = useGameStore()
     const playerStore = usePlayerStore()
 
@@ -20,7 +18,7 @@ export function useGameLifecycle() {
     })
 
     useUpdate((time, delta) => {
-        if (isGameOver || isLeveling) return
+        if (gameStore.isGameOver || gameStore.isLeveling) return
 
         gameStore.updateTime(delta)
         playerStore.updateInvulnerability(delta)
