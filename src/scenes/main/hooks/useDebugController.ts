@@ -1,7 +1,7 @@
 import Phaser from "phaser"
 import { useGameStore } from "../stores/game"
 import { usePlayerStore } from "../stores/player"
-import { useScene, onMount } from "../../../lib/react-phaser"
+import { useScene, onMount } from "@realiz3r/react-phaser"
 import { BulletType } from "../components/Bullet"
 import mapConfig from "../../../config/map.json"
 

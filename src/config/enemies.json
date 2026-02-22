@@ -31,6 +31,30 @@
       "score": 500,
       "scale": 0.5,
       "damage": 15
+    },
+    "boss": {
+      "spritePath": "enemy_boss",
+      "health": 300,
+      "speed": 40,
+      "score": 1000,
+      "scale": 0.6,
+      "damage": 25
+    },
+    "boss_mech": {
+      "spritePath": "enemy_boss_mech",
+      "health": 400,
+      "speed": 35,
+      "score": 1500,
+      "scale": 0.65,
+      "damage": 30
+    },
+    "boss_mech2": {
+      "spritePath": "enemy_boss_mech2",
+      "health": 500,
+      "speed": 30,
+      "score": 2000,
+      "scale": 0.7,
+      "damage": 35
     }
   }
 }

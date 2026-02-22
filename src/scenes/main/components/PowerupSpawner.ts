@@ -1,6 +1,6 @@
 import Phaser from "phaser";
 import { useGameStore } from "../stores/game";
-import { useEffect, useStore, useUpdate, useRef, useState, VNode, createNode } from "../../../lib/react-phaser";
+import { useEffect, useStore, useUpdate, useRef, useState, VNode, createNode } from "@realiz3r/react-phaser";
 
 interface ActivePowerup {
     id: number;

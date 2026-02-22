@@ -25,6 +25,10 @@ export class PreloaderScene extends Phaser.Scene {
     this.load.spritesheet('enemy_fast', window.location.origin + '/assets/generated/enemy_fast-1024x1024-4x4.png', { frameWidth: 256, frameHeight: 256 })
     this.load.spritesheet('enemy_tank', window.location.origin + '/assets/generated/enemy_tank-1024x1024-4x4.png', { frameWidth: 256, frameHeight: 256 })
     this.load.spritesheet('enemy_heavy', window.location.origin + '/assets/generated/enemy_heavy_v3-1024x1024-4x4.png', { frameWidth: 256, frameHeight: 256 })
+    this.load.spritesheet('enemy_boss', window.location.origin + '/assets/generated/enemy_boss_v2-1024x1024-4x4.png', { frameWidth: 256, frameHeight: 256 })
+    this.load.spritesheet('enemy_boss_mech', window.location.origin + '/assets/generated/enemy_boss_mech-1024x1024-4x4.png', { frameWidth: 256, frameHeight: 256 })
+    this.load.spritesheet('enemy_boss_mech2', window.location.origin + '/assets/generated/enemy_boss_mech_v2-1024x1024-4x4.png', { frameWidth: 256, frameHeight: 256 })
+    this.load.spritesheet('fire_ball', window.location.origin + '/assets/generated/fire_ball-1024x1024-4x4.png', { frameWidth: 256, frameHeight: 256 })
     this.load.spritesheet('explosion', window.location.origin + '/assets/generated/spritesheet-o2qwo8-1024x1024-4x4.png', { frameWidth: 256, frameHeight: 256 })
     
     // UI Icons
@@ -133,6 +137,34 @@ export class PreloaderScene extends Phaser.Scene {
       key: 'enemyFly_heavy',
       frames: this.anims.generateFrameNumbers('enemy_heavy', { start: 0, end: 3 }),
       frameRate: 10,
+      repeat: -1
+    })
+
+    this.anims.create({
+      key: 'enemyFly_boss',
+      frames: this.anims.generateFrameNumbers('enemy_boss', { start: 0, end: 3 }),
+      frameRate: 10,
+      repeat: -1
+    })
+
+    this.anims.create({
+      key: 'enemyFly_boss_mech',
+      frames: this.anims.generateFrameNumbers('enemy_boss_mech', { start: 0, end: 3 }),
+      frameRate: 10,
+      repeat: -1
+    })
+
+    this.anims.create({
+      key: 'enemyFly_boss_mech2',
+      frames: this.anims.generateFrameNumbers('enemy_boss_mech2', { start: 0, end: 3 }),
+      frameRate: 10,
+      repeat: -1
+    })
+
+    this.anims.create({
+      key: 'fireBall',
+      frames: this.anims.generateFrameNumbers('fire_ball', { start: 0, end: 3 }),
+      frameRate: 15,
       repeat: -1
     })
 

@@ -1,0 +1,119 @@
+{
+  "schemaVersion": 1,
+  "spritesheets": {
+    "sets": {
+      "enemy_boss_v1": {
+        "createdAt": 1771769588923,
+        "references": [],
+        "sheets": {
+          "enemy_boss": {
+            "path": "assets/generated/enemy_boss-1024x1024-4x4.png",
+            "size": "1024x1024",
+            "grid": "4x4",
+            "cols": 4,
+            "rows": 4,
+            "loop": true,
+            "prompt": "Large menacing alien mothership boss, dark crimson red with glowing purple energy core, hexagonal armored hull, menacing eye or command center, deadly looking weapon pods, 8-bit pixel art style, space threat, 256x256",
+            "filename": "enemy_boss",
+            "createdAt": 1771769588923
+          }
+        },
+        "updatedAt": 1771769588923,
+        "entityKey": "enemy",
+        "canonicalReference": "assets/generated/enemy_boss-1024x1024-4x4.png"
+      },
+      "enemy_boss_v2": {
+        "createdAt": 1771770883169,
+        "references": [],
+        "sheets": {
+          "enemy_boss_v2": {
+            "path": "assets/generated/enemy_boss_v2-1024x1024-4x4.png",
+            "size": "1024x1024",
+            "grid": "4x4",
+            "cols": 4,
+            "rows": 4,
+            "loop": true,
+            "prompt": "Huge terrifying space dragon, serpentine body with scales, glowing orange eyes, wings spread wide, multiple heads like a hydra, dark purple and black coloring with fiery red accents, 8-bit pixel art style, menacing threatening boss, 256x256",
+            "filename": "enemy_boss_v2",
+            "createdAt": 1771770883169
+          }
+        },
+        "updatedAt": 1771770883169,
+        "entityKey": "enemy",
+        "canonicalReference": "assets/generated/enemy_boss_v2-1024x1024-4x4.png"
+      },
+      "enemy_boss_mech_v1": {
+        "createdAt": 1771771153650,
+        "references": [],
+        "sheets": {
+          "enemy_boss_mech": {
+            "path": "assets/generated/enemy_boss_mech-1024x1024-4x4.png",
+            "size": "1024x1024",
+            "grid": "4x4",
+            "cols": 4,
+            "rows": 4,
+            "loop": true,
+            "prompt": "Massive mechanical war machine, giant robot battleship, cybernetic skull head, multiple laser cannons, glowing blue energy core, steel gray and dark iron armor, robotic limbs, menacing LED eyes red, 8-bit pixel art style, 256x256",
+            "filename": "enemy_boss_mech",
+            "createdAt": 1771771153650
+          }
+        },
+        "updatedAt": 1771771153650,
+        "entityKey": "enemy",
+        "canonicalReference": "assets/generated/enemy_boss_mech-1024x1024-4x4.png"
+      },
+      "enemy_boss_mech_v2": {
+        "createdAt": 1771771340690,
+        "references": [],
+        "sheets": {
+          "enemy_boss_mech_v2": {
+            "path": "assets/generated/enemy_boss_mech_v2-1024x1024-4x4.png",
+            "size": "1024x1024",
+            "grid": "4x4",
+            "cols": 4,
+            "rows": 4,
+            "loop": true,
+            "prompt": "Massive mechanical fortress, giant spider tank, eight mechanical legs, multiple gun turrets, glowing green radioactive core, rusty dark metal armor with orange rust details, menacing industrial look, 8-bit pixel art style, 256x256",
+            "filename": "enemy_boss_mech_v2",
+            "createdAt": 1771771340690
+          }
+        },
+        "updatedAt": 1771771340690,
+        "entityKey": "enemy",
+        "canonicalReference": "assets/generated/enemy_boss_mech_v2-1024x1024-4x4.png"
+      },
+      "fire_ball_v1": {
+        "createdAt": 1771772318562,
+        "references": [],
+        "sheets": {
+          "fire_ball": {
+            "path": "assets/generated/fire_ball-1024x1024-4x4.png",
+            "size": "1024x1024",
+            "grid": "4x4",
+            "cols": 4,
+            "rows": 4,
+            "loop": true,
+            "prompt": "Flaming fireball projectile, swirling flames, orange red yellow gradient, intense burning effect, glowing core, fire projectile for video game, 8-bit pixel art style, 128x128",
+            "filename": "fire_ball",
+            "createdAt": 1771772318562
+          }
+        },
+        "updatedAt": 1771772318562,
+        "canonicalReference": "assets/generated/fire_ball-1024x1024-4x4.png"
+      }
+    },
+    "entities": {
+      "enemy": {
+        "createdAt": 1771769588923,
+        "setKeys": [
+          "enemy_boss_v1",
+          "enemy_boss_v2",
+          "enemy_boss_mech_v1",
+          "enemy_boss_mech_v2"
+        ],
+        "updatedAt": 1771771340690,
+        "activeSetKey": "enemy_boss_mech_v2"
+      }
+    }
+  }
+}

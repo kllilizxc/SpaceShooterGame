@@ -3,7 +3,7 @@ import mapConfig from "../../../config/map.json"
 import enemyConfig from "../../../config/enemies.json"
 import { useGameStore } from "../stores/game"
 import { usePlayerStore } from "../stores/player"
-import { useStore, useUpdate, useRef, useState, VNode, createNode } from "../../../lib/react-phaser"
+import { useStore, useUpdate, useRef, useState, VNode, createNode } from "@realiz3r/react-phaser"
 
 interface WaveEnemy { type: string; weight: number }
 interface WaveConfig { startTime: number; spawnInterval: number; enemies: WaveEnemy[] }
@@ -97,7 +97,8 @@ export function EnemySpawner({ enemiesRef }: { enemiesRef: { current: Phaser.Phy
         rotation: (type === 'tank' || type === 'fast') ? Math.PI / 2 : 0,
         health: stats.health,
         damage: stats.damage,
-        score: stats.score
+        score: stats.score,
+        type: type
       })
     })
   )

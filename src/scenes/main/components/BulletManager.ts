@@ -1,5 +1,5 @@
 import Phaser from "phaser"
-import { useUpdate, createNode, VNode, useStore, useState, useLayoutEffect } from "../../../lib/react-phaser"
+import { useUpdate, createNode, VNode, useStore, useState, useLayoutEffect } from "@realiz3r/react-phaser"
 import { useGameStore } from "../stores/game"
 import { Bullet, BulletData } from "./Bullet"
 

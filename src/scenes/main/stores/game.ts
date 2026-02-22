@@ -1,4 +1,4 @@
-import { defineGameStore } from "../../../lib/game-state";
+import { defineGameStore } from "@realiz3r/react-phaser";
 
 export type GamePhase = "playing" | "paused" | "gameover" | "leveling" | "menu";
 

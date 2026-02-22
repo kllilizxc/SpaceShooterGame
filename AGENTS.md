@@ -4,7 +4,6 @@
 - `src/main.ts`: Phaser bootstrap and scene registration.
 - `src/scenes/PreloaderScene.ts`: loads assets, defines animations, then starts `MainScene`.
 - `src/scenes/MainScene.ts`: mounts `GameRoot` (see `src/scenes/main/`).
-- `src/lib/`: lightweight “react-phaser” renderer/hooks and shared state helpers.
 - `src/config/`: gameplay/balance config (`*.json`) and typed config helpers (`*.ts`).
 - `assets/`: game art (mostly in `assets/generated/`), referenced by the preloader.
 

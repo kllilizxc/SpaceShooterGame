@@ -3,7 +3,7 @@ import { BulletType, BULLET_CONFIGS } from "../components/Bullet"
 import { GAME_CONFIG } from "../../../config/GameStats"
 import { usePlayerStore } from "../stores/player"
 import { useGameStore } from "../stores/game"
-import { useUpdate, useRef, onMount, useScene } from "../../../lib/react-phaser"
+import { useUpdate, useRef, onMount, useScene } from "@realiz3r/react-phaser"
 
 interface PlayerControllerProps {
   playerRef: { current: Phaser.Types.Physics.Arcade.SpriteWithDynamicBody | null }

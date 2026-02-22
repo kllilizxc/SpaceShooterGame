@@ -1,5 +1,5 @@
 import Phaser from "phaser"
-import { useScene, onMount } from "../../../lib/react-phaser"
+import { useScene, onMount } from "@realiz3r/react-phaser"
 import { usePlayerStore } from "../stores/player"
 import { useGameStore } from "../stores/game"
 import { createExplosion } from "../components/HUD"
@@ -15,9 +15,10 @@ interface CollisionProps {
     bulletsRef: { current: Phaser.Physics.Arcade.Group | null }
     enemiesRef: { current: Phaser.Physics.Arcade.Group | null }
     powerupsRef: { current: Phaser.Physics.Arcade.Group | null }
+    enemyProjectilesRef: { current: Phaser.Physics.Arcade.Group | null }
 }
 
-export function useCollisions({ playerRef, bulletsRef, enemiesRef, powerupsRef }: CollisionProps) {
+export function useCollisions({ playerRef, bulletsRef, enemiesRef, powerupsRef, enemyProjectilesRef }: CollisionProps) {
     const scene = useScene()
     const playerStore = usePlayerStore()
     const gameStore = useGameStore()
@@ -53,9 +54,10 @@ export function useCollisions({ playerRef, bulletsRef, enemiesRef, powerupsRef }
         const bullets = bulletsRef.current
         const enemies = enemiesRef.current
         const powerups = powerupsRef.current
+        const enemyProjectiles = enemyProjectilesRef.current
 
         // Refs should be assigned in the same commit before layout effects flush.
-        if (!player || !bullets || !enemies || !powerups) return
+        if (!player || !bullets || !enemies || !powerups || !enemyProjectiles) return
 
         // Bullets vs Enemies
         const bulletsVsEnemies = scene.physics.add.overlap(bullets, enemies, (bulletObj, enemyObj) => {
@@ -111,10 +113,20 @@ export function useCollisions({ playerRef, bulletsRef, enemiesRef, powerupsRef }
             showLevelUp() // Powerups trigger level up in this game design
         })
 
+        // Player vs Enemy Projectiles
+        const playerVsEnemyProjectiles = scene.physics.add.overlap(player, enemyProjectiles, (_player, _proj) => {
+            const proj = _proj as Phaser.Physics.Arcade.Sprite
+            proj.setActive(false).setVisible(false)
+            if (proj.body) (proj.body as Phaser.Physics.Arcade.Body).setEnable(false)
+            playerStore.takeDamage(proj.getData("damage") || 10)
+            if (playerStore.isDead) showGameOver()
+        })
+
         return () => {
             bulletsVsEnemies.destroy()
             playerVsEnemies.destroy()
             playerVsPowerups.destroy()
+            playerVsEnemyProjectiles.destroy()
         }
     })
 }

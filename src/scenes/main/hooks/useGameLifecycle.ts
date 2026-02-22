@@ -1,4 +1,4 @@
-import { onMount, useUpdate } from "../../../lib/react-phaser"
+import { onMount, useUpdate } from "@realiz3r/react-phaser"
 import { useGameStore } from "../stores/game"
 import { usePlayerStore } from "../stores/player"
 import { Bullet } from "../components/Bullet"

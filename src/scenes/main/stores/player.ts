@@ -1,4 +1,4 @@
-import { defineGameStore } from "../../../lib/game-state";
+import { defineGameStore } from "@realiz3r/react-phaser";
 import { BulletType } from "../components/Bullet";
 import { GAME_CONFIG, getXPForLevel, getDefaultUpgrades, PlayerUpgrades, applyUpgrade } from "../../../config/GameStats";
 

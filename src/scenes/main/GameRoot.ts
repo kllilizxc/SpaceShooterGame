@@ -1,4 +1,4 @@
-import { createNode, useStore, VNode, useScene, useEffect, useRef } from "../../lib/react-phaser"
+import { createNode, useStore, VNode, useScene, useEffect, useRef } from "@realiz3r/react-phaser"
 import { useGameStore } from "./stores/game"
 import { HUD } from "./components/HUD"
 import { LevelUpPanel } from "./components/LevelUpPanel"
@@ -6,6 +6,7 @@ import { usePlayerStore } from "./stores/player"
 import { usePlayerController } from "./hooks/usePlayerController"
 import { EnemySpawner } from "./components/EnemySpawner"
 import { PowerupSpawner } from "./components/PowerupSpawner"
+import { EnemyProjectileSpawner } from "./components/EnemyProjectileSpawner"
 import { useDebugController } from "./hooks/useDebugController"
 import { useGameLifecycle } from "./hooks/useGameLifecycle"
 import { useCollisions } from "./hooks/useCollisions"
@@ -47,6 +48,7 @@ export function GameRoot(props: any): VNode {
     const bulletsRef = useRef<Phaser.Physics.Arcade.Group | null>(null)
     const enemiesRef = useRef<Phaser.Physics.Arcade.Group | null>(null)
     const powerupsRef = useRef<Phaser.Physics.Arcade.Group | null>(null)
+    const enemyProjectilesRef = useRef<Phaser.Physics.Arcade.Group | null>(null)
 
     // Effect hooks (Logic only, no rendering)
     usePhysicsController()
@@ -58,7 +60,8 @@ export function GameRoot(props: any): VNode {
         playerRef,
         bulletsRef,
         enemiesRef,
-        powerupsRef
+        powerupsRef,
+        enemyProjectilesRef
     })
 
     usePlayerController({
@@ -75,6 +78,7 @@ export function GameRoot(props: any): VNode {
         createNode(BulletManager, { bulletsRef, onFireRef: fireRef }),
         createNode(EnemySpawner, { enemiesRef }),
         createNode(PowerupSpawner, { powerupsRef }),
+        createNode(EnemyProjectileSpawner, { enemiesRef, enemyProjectilesRef }),
 
         // The Player Object
         createNode('physics-sprite', {

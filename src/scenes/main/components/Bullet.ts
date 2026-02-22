@@ -1,5 +1,5 @@
 import Phaser from "phaser"
-import { VNode, createNode, useEffect, useUpdate, useRef } from "../../../lib/react-phaser"
+import { VNode, createNode, useEffect, useUpdate, useRef } from "@realiz3r/react-phaser"
 import normalConfig from "../../../config/bullets/normal.json"
 import spreadConfig from "../../../config/bullets/spread.json"
 import laserConfig from "../../../config/bullets/laser.json"

@@ -1,7 +1,7 @@
 import Phaser from "phaser"
 import { usePlayerStore } from "../stores/player"
 import { useGameStore } from "../stores/game"
-import { createNode, useEffect, useStore, useState, VNode } from "../../../lib/react-phaser"
+import { createNode, useEffect, useStore, useState, VNode } from "@realiz3r/react-phaser"
 import { getAvailablePowerups } from "../../../config/GameStats"
 
 interface UpgradeCardProps {

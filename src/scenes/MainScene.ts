@@ -1,6 +1,6 @@
 import Phaser from "phaser"
 import { GameRoot } from "./main/GameRoot"
-import { mountRoot } from "../lib/react-phaser"
+import { mountRoot } from "@realiz3r/react-phaser"
 
 export class MainScene extends Phaser.Scene {
 

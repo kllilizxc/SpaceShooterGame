@@ -1,7 +1,7 @@
 import Phaser from "phaser"
 import { usePlayerStore } from "../stores/player"
 import { useGameStore } from "../stores/game"
-import { createNode, useEffect, useRef, useState, useStore, useUpdate, VNode } from "../../../lib/react-phaser"
+import { createNode, useEffect, useRef, useState, useStore, useUpdate, VNode } from "@realiz3r/react-phaser"
 
 export function HUD(): VNode {
   const score = useStore(usePlayerStore, s => s.score)
