@@ -76,7 +76,7 @@ export function LevelUpPanel(): VNode | null {
 
     return createNode('container', {},
         // Overlay
-        createNode('rect', { width: 800, height: 600, fill: 0x000000, alpha: 0.8, interactive: true }), // interactive absorbs clicks
+        createNode('rect', { width: 800, height: 600, fill: 0x000000, alpha: 0.64, interactive: true }), // interactive absorbs clicks
 
         // Title
         createNode('text', { x: 400, y: 100, text: "LEVEL UP!", fontSize: 48, color: themeColor, fontStyle: "bold", originX: 0.5, originY: 0.5 }),

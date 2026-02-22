@@ -1018,13 +1018,13 @@ function updatePhaserObject(obj: any, type: string, newProps: any, oldProps: any
         case 'rect':
             // Only redraw graphics if properties changed
             if (newProps.width !== oldProps.width || newProps.height !== oldProps.height ||
-                newProps.fill !== oldProps.fill || newProps.alpha !== oldProps.alpha ||
+                newProps.fill !== oldProps.fill ||
                 newProps.strokeWidth !== oldProps.strokeWidth || newProps.lineColor !== oldProps.lineColor) {
 
                 const g = obj as Phaser.GameObjects.Graphics;
                 g.clear();
                 if (newProps.fill !== undefined) {
-                    g.fillStyle(newProps.fill, newProps.alpha ?? 1);
+                    g.fillStyle(newProps.fill, 1);
                     g.fillRect(0, 0, newProps.width || 0, newProps.height || 0);
                 }
                 if (newProps.strokeWidth && newProps.lineColor !== undefined) {

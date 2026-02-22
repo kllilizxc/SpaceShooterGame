@@ -1,7 +1,7 @@
 import Phaser from "phaser"
 import { usePlayerStore } from "../stores/player"
 import { useGameStore } from "../stores/game"
-import { createNode, useStore, VNode } from "../../../lib/react-phaser"
+import { createNode, useEffect, useRef, useState, useStore, useUpdate, VNode } from "../../../lib/react-phaser"
 
 export function HUD(): VNode {
   const player = useStore(usePlayerStore)
@@ -14,14 +14,53 @@ export function HUD(): VNode {
   const mins = Math.floor(totalSeconds / 60).toString().padStart(2, '0')
   const secs = (totalSeconds % 60).toString().padStart(2, '0')
 
-  // Calculate damage overlay alpha based on health
-  const damageAlpha = Math.max(0, 1 - player.healthPercent)
+  // Damage flash overlay (short animation when health decreases)
+  const prevHealthRef = useRef(player.health)
+  const flashTimeRef = useRef(0)
+  const flashPeakRef = useRef(0)
+  const [flashAlpha, setFlashAlpha] = useState(0)
+
+  useEffect(() => {
+    const prev = prevHealthRef.current
+    const next = player.health
+
+    if (next < prev) {
+      const damage = prev - next
+      const intensity = Math.max(0, Math.min(1, damage / Math.max(1, player.maxHealth)))
+      const peak = Math.min(0.85, 0.45 + intensity * 0.4)
+
+      flashPeakRef.current = Math.max(flashPeakRef.current, peak)
+      flashTimeRef.current = 0
+      setFlashAlpha(flashPeakRef.current)
+    }
+
+    prevHealthRef.current = next
+  }, [player.health, player.maxHealth])
+
+  useUpdate((_time, delta) => {
+    if (flashPeakRef.current <= 0) return
+
+    const durationMs = 220
+    flashTimeRef.current += delta
+    const t = flashTimeRef.current / durationMs
+
+    if (t >= 1) {
+      flashPeakRef.current = 0
+      flashTimeRef.current = 0
+      setFlashAlpha(0)
+      return
+    }
+
+    const eased = 1 - t
+    const alpha = flashPeakRef.current * eased * eased
+    setFlashAlpha(alpha)
+  })
 
   return createNode('container', {},
     // Damage Overlay
     createNode('rect', {
       width: 800, height: 600,
-      fill: 0xff0000, alpha: damageAlpha
+      fill: 0xff0000, alpha: flashAlpha
     }),
 
     // Top Right: Score
@@ -56,4 +95,3 @@ export function createExplosion(scene: Phaser.Scene, x: number, y: number) {
   const explosion = scene.add.sprite(x, y, 'explosion').setScale(0.2).play('explode')
   explosion.on('animationcomplete', () => explosion.destroy())
 }
-
