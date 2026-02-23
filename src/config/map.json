@@ -5,8 +5,24 @@
       "spawnInterval": 2000,
       "enemies": [
         {
-          "type": "basic",
-          "weight": 100
+          "type": "tank",
+          "weight": 15
+        },
+        {
+          "type": "heavy",
+          "weight": 25
+        },
+        {
+          "type": "boss",
+          "weight": 20
+        },
+        {
+          "type": "boss_mech",
+          "weight": 20
+        },
+        {
+          "type": "boss_mech2",
+          "weight": 20
         }
       ]
     },

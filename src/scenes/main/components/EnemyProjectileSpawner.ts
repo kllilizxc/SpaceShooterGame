@@ -9,10 +9,12 @@ interface EnemyProjectile {
     damage: number
 }
 
-export function EnemyProjectileSpawner({
-    enemiesRef,
-    enemyProjectilesRef
-}: {
+const BOSS_TYPES = new Set(['boss', 'boss_mech', 'boss_mech2'])
+
+export function EnemyProjectileSpawner({ 
+    enemiesRef, 
+    enemyProjectilesRef 
+}: { 
     enemiesRef: { current: Phaser.Physics.Arcade.Group | null }
     enemyProjectilesRef: { current: Phaser.Physics.Arcade.Group | null }
 }): VNode | null {
@@ -27,40 +29,55 @@ export function EnemyProjectileSpawner({
         const projectilesGroup = enemyProjectilesRef.current
         if (!enemiesGroup || !projectilesGroup) return
 
-        // Find boss enemies and fire
-        if (time > lastFireRef.current + 2000) {
-            const bossTypes = ['boss', 'boss_mech', 'boss_mech2']
-            enemiesGroup.children.each((child) => {
-                const enemy = child as Phaser.Physics.Arcade.Sprite
-                const enemyType = enemy.getData('type') as string
-                if (enemy.active && bossTypes.includes(enemyType)) {
-                    console.log('FIRE from', enemyType)
-                    setProjectiles(prev => [...prev, {
-                        id: nextIdCounter.current++,
-                        x: enemy.x,
-                        y: enemy.y + 50,
-                        damage: enemy.getData('damage') || 10
-                    }])
+        // 1) Sync state with active pooled sprites (cleanup happens here).
+        if (projectiles.length > 0) {
+            const activeIds = new Set<number>()
+
+            projectilesGroup.children.each((child) => {
+                const p = child as Phaser.Physics.Arcade.Sprite
+                if (p.active && p.y < 700) {
+                    const id = p.getData('id')
+                    if (typeof id === 'number') activeIds.add(id)
+                } else if (p.y >= 700) {
+                    p.setActive(false).setVisible(false)
+                    if (p.body) (p.body as Phaser.Physics.Arcade.Body).setEnable(false)
                 }
                 return true
             })
-            lastFireRef.current = time
+
+            setProjectiles(prev => {
+                if (prev.length === 0) return prev
+                const toKeep = prev.filter(p => activeIds.has(p.id))
+                return toKeep.length !== prev.length ? toKeep : prev
+            })
         }
 
-        console.log('PROJ_STATE:', projectiles.length)
+        // 2) Spawn logic (after syncing so new projectiles aren't immediately culled).
+        if (time > lastFireRef.current + 2000) {
+            const spawned: EnemyProjectile[] = []
 
-        // Cleanup offscreen projectiles
-        setProjectiles((prev: EnemyProjectile[]) => {
-            const activeMap = new Map<number, boolean>()
-            projectilesGroup.children.each((child) => {
-                const p = child as Phaser.Physics.Arcade.Sprite
-                const id = p.getData('id') as number | undefined
-                if (p.active && p.y < 700 && id !== undefined) activeMap.set(id, true)
-                else if (p.y >= 700) p.setActive(false).setVisible(false)
+            enemiesGroup.children.each((child) => {
+                const enemy = child as Phaser.Physics.Arcade.Sprite
+                if (!enemy.active) return true
+
+                const enemyType = enemy.getData('type') as string | undefined
+                if (!enemyType || !BOSS_TYPES.has(enemyType)) return true
+
+                const damage = (enemy.getData('damage') as number | undefined) ?? 10
+                spawned.push({
+                    id: nextIdCounter.current++,
+                    x: enemy.x,
+                    y: enemy.y + 50,
+                    damage
+                })
                 return true
             })
-            return prev.filter(p => activeMap.has(p.id))
-        })
+
+            if (spawned.length > 0) {
+                setProjectiles(prev => [...prev, ...spawned])
+            }
+            lastFireRef.current = time
+        }
     })
 
     return createNode('physics-group', {
