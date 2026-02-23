@@ -63,9 +63,9 @@ export function PowerupSpawner({ powerupsRef }: { powerupsRef: { current: Phaser
             id: p.id,
             x: p.x,
             y: p.y,
-            texture: "bullet",
-            scale: 0.25,
-            tint: 0x00ff00,
+            texture: "powerup",
+            play: "powerupPulse",
+            scale: 0.28,
             velocityY: 100
         }))
     );

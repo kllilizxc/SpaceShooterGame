@@ -30,6 +30,7 @@ export class PreloaderScene extends Phaser.Scene {
     this.load.spritesheet('enemy_boss_mech2', window.location.origin + '/assets/generated/enemy_boss_mech_v2-1024x1024-4x4.png', { frameWidth: 256, frameHeight: 256 })
     this.load.spritesheet('fire_ball', window.location.origin + '/assets/generated/fire_ball-1024x1024-4x4.png', { frameWidth: 256, frameHeight: 256 })
     this.load.spritesheet('explosion', window.location.origin + '/assets/generated/spritesheet-o2qwo8-1024x1024-4x4.png', { frameWidth: 256, frameHeight: 256 })
+    this.load.spritesheet('powerup', window.location.origin + '/assets/generated/powerup_orb-1024x1024-4x4.png', { frameWidth: 256, frameHeight: 256 })
     
     // UI Icons
     this.load.spritesheet('upgrade_icons', window.location.origin + '/assets/generated/upgrade_icons-1024x1024-3x3.png', { frameWidth: 341, frameHeight: 341 })
@@ -173,6 +174,13 @@ export class PreloaderScene extends Phaser.Scene {
       frames: this.anims.generateFrameNumbers('explosion', { start: 0, end: 15 }),
       frameRate: 15,
       repeat: 0
+    })
+
+    this.anims.create({
+      key: 'powerupPulse',
+      frames: this.anims.generateFrameNumbers('powerup', { start: 0, end: 15 }),
+      frameRate: 12,
+      repeat: -1
     })
 
     this.scene.start('MainScene')
