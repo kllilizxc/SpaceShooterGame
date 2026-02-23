@@ -1,8 +1,8 @@
 {
   "name": "SPREAD",
   "spritePath": "bullet",
-  "bodyWidthRatio": 8,
-  "bodyHeightRatio": 8,
+  "bodyWidthRatio": 0.8,
+  "bodyHeightRatio": 0.8,
   "levels": {
     "1": {
       "damage": 8,
