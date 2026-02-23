@@ -11,10 +11,10 @@ interface EnemyProjectile {
 
 const BOSS_TYPES = new Set(['boss', 'boss_mech', 'boss_mech2'])
 
-export function EnemyProjectileSpawner({ 
-    enemiesRef, 
-    enemyProjectilesRef 
-}: { 
+export function EnemyProjectileSpawner({
+    enemiesRef,
+    enemyProjectilesRef
+}: {
     enemiesRef: { current: Phaser.Physics.Arcade.Group | null }
     enemyProjectilesRef: { current: Phaser.Physics.Arcade.Group | null }
 }): VNode | null {
@@ -92,6 +92,8 @@ export function EnemyProjectileSpawner({
             texture: 'fire_ball',
             play: 'fireBall',
             scale: 0.3,
+            bodyWidthRatio: .8,
+            bodyHeightRatio: .8,
             velocityY: 200,
             enable: true,
             damage: p.damage

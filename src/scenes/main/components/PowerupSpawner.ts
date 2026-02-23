@@ -63,6 +63,8 @@ export function PowerupSpawner({ powerupsRef }: { powerupsRef: { current: Phaser
             id: p.id,
             x: p.x,
             y: p.y,
+            bodyWidthRatio: .8,
+            bodyHeightRatio: .8,
             texture: "powerup",
             play: "powerupPulse",
             scale: 0.28,
