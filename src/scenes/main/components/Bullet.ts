@@ -144,6 +144,11 @@ export function Bullet(props: any): VNode {
     // Follow Owner logic
     if (config.followOwner && owner && owner.active) {
       sprite.setPosition(owner.x, owner.y - 20);
+      // Keep Arcade body locked to the visual beam position every frame.
+      const body = sprite.body as Phaser.Physics.Arcade.Body | undefined;
+      if (body && typeof body.updateFromGameObject === "function") {
+        body.updateFromGameObject();
+      }
     }
   });
 

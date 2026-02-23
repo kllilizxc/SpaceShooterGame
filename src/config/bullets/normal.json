@@ -1,8 +1,8 @@
 {
   "name": "NORMAL",
   "spritePath": "bullet",
-  "bodyWidthRatio": 0.75,
-  "bodyHeightRatio": 0.75,
+  "bodyWidthRatio": 0.4,
+  "bodyHeightRatio": 0.4,
   "levels": {
     "1": {
       "damage": 15,
@@ -10,7 +10,10 @@
       "flySpeed": 250,
       "scale": 0.15,
       "pierce": 1,
-      "spread": { "count": 1, "angleOffset": 0 },
+      "spread": {
+        "count": 1,
+        "angleOffset": 0
+      },
       "description": "Standard energy bolt. Balanced performance."
     },
     "2": {
@@ -19,7 +22,10 @@
       "flySpeed": 240,
       "scale": 0.25,
       "pierce": 2,
-      "spread": { "count": 1, "angleOffset": 0 },
+      "spread": {
+        "count": 1,
+        "angleOffset": 0
+      },
       "description": "Larger, heavier bolt with piercing."
     },
     "3": {
@@ -28,7 +34,10 @@
       "flySpeed": 230,
       "scale": 0.35,
       "pierce": 3,
-      "spread": { "count": 1, "angleOffset": 0 },
+      "spread": {
+        "count": 1,
+        "angleOffset": 0
+      },
       "description": "Big energy sphere. Crushes enemies."
     },
     "4": {
@@ -37,7 +46,10 @@
       "flySpeed": 220,
       "scale": 0.50,
       "pierce": 4,
-      "spread": { "count": 1, "angleOffset": 0 },
+      "spread": {
+        "count": 1,
+        "angleOffset": 0
+      },
       "description": "Massive slow projectile. High impact."
     },
     "5": {
@@ -46,7 +58,10 @@
       "flySpeed": 200,
       "scale": 0.70,
       "pierce": 5,
-      "spread": { "count": 1, "angleOffset": 0 },
+      "spread": {
+        "count": 1,
+        "angleOffset": 0
+      },
       "description": "Giant devastating energy orb."
     }
   }

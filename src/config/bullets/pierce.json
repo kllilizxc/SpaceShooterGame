@@ -2,8 +2,8 @@
   "name": "PIERCE",
   "spritePath": "bullet",
   "baseRotation": -2.356,
-  "bodyWidthRatio": 1,
-  "bodyHeightRatio": 10,
+  "bodyWidthRatio": 0.2,
+  "bodyHeightRatio": 1,
   "levels": {
     "1": {
       "damage": 25,
@@ -11,7 +11,10 @@
       "flySpeed": 100,
       "scale": 0.09,
       "pierce": 999,
-      "spread": { "count": 1, "angleOffset": 0 },
+      "spread": {
+        "count": 1,
+        "angleOffset": 0
+      },
       "description": "Heavy rail beam. Slow but unstoppable."
     },
     "2": {
@@ -20,7 +23,10 @@
       "flySpeed": 120,
       "scale": 0.10,
       "pierce": 999,
-      "spread": { "count": 1, "angleOffset": 0 },
+      "spread": {
+        "count": 1,
+        "angleOffset": 0
+      },
       "description": "Increased beam intensity."
     },
     "3": {
@@ -29,7 +35,10 @@
       "flySpeed": 140,
       "scale": 0.11,
       "pierce": 999,
-      "spread": { "count": 1, "angleOffset": 0 },
+      "spread": {
+        "count": 1,
+        "angleOffset": 0
+      },
       "description": "Massive railgun energy spike."
     },
     "4": {
@@ -38,7 +47,10 @@
       "flySpeed": 170,
       "scale": 0.12,
       "pierce": 999,
-      "spread": { "count": 2, "angleOffset": 0.1 },
+      "spread": {
+        "count": 2,
+        "angleOffset": 0.1
+      },
       "description": "Twin heavy beams."
     },
     "5": {
@@ -47,7 +59,10 @@
       "flySpeed": 220,
       "scale": 0.13,
       "pierce": 999,
-      "spread": { "count": 3, "angleOffset": 0.15 },
+      "spread": {
+        "count": 3,
+        "angleOffset": 0.15
+      },
       "description": "Triple pulsar cannons. Nothing survives."
     }
   }

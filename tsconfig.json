@@ -9,5 +9,8 @@
   },
   "include": [
     "src"
+  ],
+  "exclude": [
+    "src/lib/react-phaser"
   ]
 }

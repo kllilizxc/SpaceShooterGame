@@ -2,9 +2,12 @@
   "name": "LASER",
   "spritePath": "bullet_laser",
   "followOwner": true,
-  "origin": { "x": 0.5, "y": 1 },
+  "origin": {
+    "x": 0.5,
+    "y": 1
+  },
   "baseRotation": 1.5708,
-  "bodyWidthRatio": 0.02,
+  "bodyWidthRatio": 0.04,
   "bodyHeightRatio": 1.0,
   "levels": {
     "1": {
@@ -13,7 +16,10 @@
       "flySpeed": 0,
       "scale": 2.0,
       "pierce": 999,
-      "spread": { "count": 1, "angleOffset": 0 },
+      "spread": {
+        "count": 1,
+        "angleOffset": 0
+      },
       "lifespan": 500,
       "hitInterval": 100,
       "description": "Powerful vertical beam. Pierces everything. Slow recharge."
@@ -24,7 +30,10 @@
       "flySpeed": 0,
       "scale": 2.2,
       "pierce": 999,
-      "spread": { "count": 1, "angleOffset": 0 },
+      "spread": {
+        "count": 1,
+        "angleOffset": 0
+      },
       "lifespan": 500,
       "hitInterval": 100,
       "description": "Increased beam intensity and recharge speed."
@@ -35,7 +44,10 @@
       "flySpeed": 0,
       "scale": 2.4,
       "pierce": 999,
-      "spread": { "count": 1, "angleOffset": 0 },
+      "spread": {
+        "count": 1,
+        "angleOffset": 0
+      },
       "lifespan": 500,
       "hitInterval": 100,
       "description": "Massive damage output."
@@ -46,7 +58,10 @@
       "flySpeed": 0,
       "scale": 2.6,
       "pierce": 999,
-      "spread": { "count": 1, "angleOffset": 0 },
+      "spread": {
+        "count": 1,
+        "angleOffset": 0
+      },
       "lifespan": 500,
       "hitInterval": 100,
       "description": "Even faster recharge."
@@ -57,7 +72,10 @@
       "flySpeed": 0,
       "scale": 3.0,
       "pierce": 999,
-      "spread": { "count": 1, "angleOffset": 0 },
+      "spread": {
+        "count": 1,
+        "angleOffset": 0
+      },
       "lifespan": 500,
       "hitInterval": 100,
       "description": "The ultimate orbital strike."
